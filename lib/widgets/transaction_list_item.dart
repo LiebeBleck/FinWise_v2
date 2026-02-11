@@ -57,11 +57,15 @@ class TransactionListItem extends StatelessWidget {
         ),
         subtitle: Row(
           children: [
-            Text(
-              category?.name ?? 'Без категории',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
+            Flexible(
+              child: Text(
+                category?.name ?? 'Без категории',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 8),

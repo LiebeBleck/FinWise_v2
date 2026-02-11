@@ -576,15 +576,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   List<Transaction> _filterByPeriod(List<Transaction> transactions) {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     DateTime startDate;
+    DateTime? endDate;
 
     switch (_selectedPeriod) {
       case 'day':
-        startDate = DateTime(now.year, now.month, now.day);
+        startDate = today;
+        endDate = today.add(const Duration(days: 1));
         break;
       case 'week':
-        startDate = now.subtract(Duration(days: now.weekday - 1));
-        startDate = DateTime(startDate.year, startDate.month, startDate.day);
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        startDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
         break;
       case 'month':
         startDate = DateTime(now.year, now.month, 1);
@@ -593,9 +596,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         startDate = DateTime(now.year, now.month, 1);
     }
 
-    return transactions
-        .where((t) => t.date.isAfter(startDate) || t.date.isAtSameMomentAs(startDate))
-        .toList();
+    return transactions.where((t) {
+      final transactionDate = DateTime(t.date.year, t.date.month, t.date.day);
+
+      if (endDate != null) {
+        // For day filter: transaction must be on the same day
+        return transactionDate.isAtSameMomentAs(startDate) ||
+               (transactionDate.isAfter(startDate) && transactionDate.isBefore(endDate));
+      } else {
+        // For week and month: transaction must be after or on start date
+        return transactionDate.isAfter(startDate) || transactionDate.isAtSameMomentAs(startDate);
+      }
+    }).toList();
   }
 }
 
