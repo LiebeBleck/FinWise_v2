@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/transaction.dart';
-import '../models/category.dart';
 import '../models/budget.dart';
 import '../theme/app_theme.dart';
 import '../widgets/budget_progress_card.dart';
