@@ -448,12 +448,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       );
     }
 
+    // Calculate once to avoid multiple calls
+    final maxY = _calculateMaxY(expenses);
+    final gridInterval = _getGridInterval(maxY);
+
     return SizedBox(
       height: 250,
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: _calculateMaxY(expenses),
+          maxY: maxY,
           barTouchData: BarTouchData(
             enabled: true,
             touchTooltipData: BarTouchTooltipData(
@@ -490,7 +494,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 50,
-                interval: _getGridInterval(_calculateMaxY(expenses)),
+                interval: gridInterval,
                 getTitlesWidget: (value, meta) {
                   return Text(
                     _formatShortAmount(value),
@@ -505,7 +509,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
-            horizontalInterval: _getGridInterval(_calculateMaxY(expenses)),
+            horizontalInterval: gridInterval,
           ),
           borderData: FlBorderData(show: false),
           barGroups: barGroups,
