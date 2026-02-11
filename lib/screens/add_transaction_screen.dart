@@ -319,11 +319,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Future<void> _selectDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: _selectedDate.isBefore(today) || _selectedDate.isAfter(today.add(const Duration(days: 7)))
+          ? today
+          : _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: today.add(const Duration(days: 7)), // Allow up to 7 days in future
     );
 
     if (date != null && mounted) {
