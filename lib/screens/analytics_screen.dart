@@ -646,35 +646,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   List<Transaction> _filterByPeriod(List<Transaction> transactions) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    DateTime startDate;
-    DateTime? endDate;
-
-    switch (_selectedPeriod) {
-      case 'day':
-        startDate = today;
-        endDate = today.add(const Duration(days: 1));
-        break;
-      case 'week':
-        final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        startDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
-        break;
-      case 'month':
-        startDate = DateTime(now.year, now.month, 1);
-        break;
-      default:
-        startDate = DateTime(now.year, now.month, 1);
-    }
 
     return transactions.where((t) {
-      final transactionDate = DateTime(t.date.year, t.date.month, t.date.day);
+      final txDate = DateTime(t.date.year, t.date.month, t.date.day);
 
-      if (endDate != null) {
-        // For day filter: transaction must be on the same day
-        return transactionDate.isAtSameMomentAs(startDate) ||
-               (transactionDate.isAfter(startDate) && transactionDate.isBefore(endDate));
-      } else {
-        // For week and month: transaction must be after or on start date
-        return transactionDate.isAfter(startDate) || transactionDate.isAtSameMomentAs(startDate);
+      switch (_selectedPeriod) {
+        case 'day':
+          // Show only today's transactions
+          return txDate.year == today.year &&
+                 txDate.month == today.month &&
+                 txDate.day == today.day;
+
+        case 'week':
+          // Show this week's transactions (Monday to Sunday)
+          final weekStart = today.subtract(Duration(days: today.weekday - 1));
+          return !txDate.isBefore(weekStart);
+
+        case 'month':
+          // Show this month's transactions
+          return txDate.year == today.year && txDate.month == today.month;
+
+        default:
+          return true;
       }
     }).toList();
   }
