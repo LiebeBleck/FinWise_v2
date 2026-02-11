@@ -490,6 +490,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 50,
+                interval: _getGridInterval(_calculateMaxY(expenses)),
                 getTitlesWidget: (value, meta) {
                   return Text(
                     _formatShortAmount(value),
@@ -504,7 +505,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
-            horizontalInterval: _calculateMaxY(expenses) / 5,
+            horizontalInterval: _getGridInterval(_calculateMaxY(expenses)),
           ),
           borderData: FlBorderData(show: false),
           barGroups: barGroups,
@@ -579,10 +580,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   double _calculateMaxY(List<Transaction> expenses) {
     final grouped = _groupByPeriod(expenses);
-    if (grouped.isEmpty) return 100;
+    if (grouped.isEmpty) return 1000;
 
     final maxValue = grouped.values.reduce((a, b) => a > b ? a : b);
-    return (maxValue * 1.2).ceilToDouble();
+    final targetMax = maxValue * 1.2;
+
+    // Round to nice number for clean grid
+    if (targetMax <= 1000) {
+      return (targetMax / 100).ceil() * 100; // Round to nearest 100
+    } else if (targetMax <= 10000) {
+      return (targetMax / 1000).ceil() * 1000; // Round to nearest 1000
+    } else {
+      return (targetMax / 5000).ceil() * 5000; // Round to nearest 5000
+    }
+  }
+
+  double _getGridInterval(double maxY) {
+    // Calculate nice interval for 5 grid lines
+    if (maxY <= 1000) {
+      return 200; // 0, 200, 400, 600, 800, 1000
+    } else if (maxY <= 5000) {
+      return 1000; // 0, 1k, 2k, 3k, 4k, 5k
+    } else if (maxY <= 10000) {
+      return 2000; // 0, 2k, 4k, 6k, 8k, 10k
+    } else {
+      return 5000; // 0, 5k, 10k, 15k, 20k, 25k
+    }
   }
 
   Map<String, CategoryTotal> _calculateCategoryTotals(List<Transaction> expenses) {
