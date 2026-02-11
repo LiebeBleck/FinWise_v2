@@ -1,6 +1,9 @@
 # Claude Code documentation (internal use only)
 CLAUDE.md
 
+# Local README files (for personal use)
+server/README.md
+
 # Miscellaneous
 *.class
 *.log

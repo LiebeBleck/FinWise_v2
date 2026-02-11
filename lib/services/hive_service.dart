@@ -42,7 +42,7 @@ class HiveService {
     if (categoriesBox.isEmpty) {
       final defaultCategories = Category.getDefaultCategories();
       for (var category in defaultCategories) {
-        await categoriesBox.add(category);
+        await categoriesBox.put(category.id, category);
       }
       print('✅ Инициализировано ${defaultCategories.length} категорий по умолчанию');
     }
