@@ -1,0 +1,28 @@
+Generic single-database configuration with async support for FinWise API.
+
+## Usage
+
+Create a new migration:
+```bash
+alembic revision --autogenerate -m "description"
+```
+
+Apply migrations:
+```bash
+alembic upgrade head
+```
+
+Rollback:
+```bash
+alembic downgrade -1
+```
+
+Show current revision:
+```bash
+alembic current
+```
+
+Show migration history:
+```bash
+alembic history
+```

@@ -28,7 +28,18 @@ async def startup_event():
     """Инициализация при запуске"""
     logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"📊 Debug mode: {settings.DEBUG}")
-    # TODO: Инициализация БД, Redis, загрузка ML моделей
+
+    # Инициализация БД
+    try:
+        from app.db import init_db
+        logger.info("📦 Initializing database...")
+        await init_db()
+        logger.info("✅ Database initialized")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        # Don't crash the app, just log the error
+
+    # TODO: Инициализация Redis, загрузка ML моделей
 
 
 @app.on_event("shutdown")
