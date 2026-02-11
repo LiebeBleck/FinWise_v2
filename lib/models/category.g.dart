@@ -21,13 +21,14 @@ class CategoryAdapter extends TypeAdapter<Category> {
       name: fields[1] as String,
       color: fields[2] as String,
       isDefault: fields[3] as bool,
+      type: fields[4] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, Category obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class CategoryAdapter extends TypeAdapter<Category> {
       ..writeByte(2)
       ..write(obj.color)
       ..writeByte(3)
-      ..write(obj.isDefault);
+      ..write(obj.isDefault)
+      ..writeByte(4)
+      ..write(obj.type);
   }
 
   @override

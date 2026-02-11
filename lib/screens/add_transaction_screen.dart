@@ -183,14 +183,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return ValueListenableBuilder(
       valueListenable: Hive.box<Category>('categories').listenable(),
       builder: (context, Box<Category> box, _) {
-        final categories = box.values.toList();
+        // Filter categories based on transaction type
+        final allCategories = box.values.toList();
+        final categories = allCategories.where((category) {
+          if (_isIncome) {
+            return category.type == 'income' || category.type == 'both';
+          } else {
+            return category.type == 'expense' || category.type == 'both';
+          }
+        }).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Категория',
-              style: TextStyle(
+            Text(
+              _isIncome ? 'Источник дохода' : 'Категория расхода',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
