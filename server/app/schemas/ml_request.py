@@ -7,7 +7,7 @@ class CategorizationRequest(BaseModel):
     """Запрос на категоризацию транзакции"""
     description: str = Field(..., description="Описание транзакции")
     amount: float = Field(..., description="Сумма транзакции")
-    datetime: datetime = Field(..., description="Дата и время")
+    transaction_datetime: datetime = Field(..., description="Дата и время", alias="datetime")
     merchant_name: Optional[str] = Field(None, description="Название магазина")
     items: Optional[List[str]] = Field(None, description="Список товаров из чека")
 
