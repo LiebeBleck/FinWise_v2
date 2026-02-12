@@ -14,7 +14,7 @@ class Transaction extends HiveObject {
   int categoryId;
 
   @HiveField(3)
-  DateTime date;
+  DateTime date; // Всегда с временем 00:00:00
 
   @HiveField(4)
   String description;
@@ -26,10 +26,10 @@ class Transaction extends HiveObject {
     required this.id,
     required this.amount,
     required this.categoryId,
-    required this.date,
+    required DateTime date,
     required this.description,
     this.receiptData,
-  });
+  }) : date = DateTime(date.year, date.month, date.day); // Обнуляем время!
 
   // Проверка, является ли транзакция доходом
   bool get isIncome => amount > 0;

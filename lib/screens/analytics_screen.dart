@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../theme/app_theme.dart';
+import '../utils/date_utils.dart';
 import 'package:intl/intl.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -644,27 +645,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   List<Transaction> _filterByPeriod(List<Transaction> transactions) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = DateTime.now().dateOnly;
 
     return transactions.where((t) {
-      final txDate = DateTime(t.date.year, t.date.month, t.date.day);
-
       switch (_selectedPeriod) {
         case 'day':
           // Show only today's transactions
-          return txDate.year == today.year &&
-                 txDate.month == today.month &&
-                 txDate.day == today.day;
+          return t.date.isSameDay(today);
 
         case 'week':
           // Show this week's transactions (Monday to Sunday)
-          final weekStart = today.subtract(Duration(days: today.weekday - 1));
-          return !txDate.isBefore(weekStart);
+          final weekStart = today.startOfWeek;
+          final weekEnd = today.endOfWeek;
+          return !t.date.isBefore(weekStart) && !t.date.isAfter(weekEnd);
 
         case 'month':
           // Show this month's transactions
-          return txDate.year == today.year && txDate.month == today.month;
+          return t.date.year == today.year && t.date.month == today.month;
 
         default:
           return true;

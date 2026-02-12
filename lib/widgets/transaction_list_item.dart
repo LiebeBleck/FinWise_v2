@@ -19,7 +19,7 @@ class TransactionListItem extends StatelessWidget {
     final categoriesBox = Hive.box<Category>('categories');
     final category = categoriesBox.get(transaction.categoryId);
 
-    final dateFormat = DateFormat('d MMM, HH:mm', 'ru_RU');
+    final dateFormat = DateFormat('d MMM', 'ru_RU');
     final numberFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
 
     return Container(

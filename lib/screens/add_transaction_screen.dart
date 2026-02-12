@@ -27,12 +27,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   late bool _isIncome;
   int? _selectedCategoryId;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _isIncome = widget.isIncome;
+
+    // Инициализация даты с обнуленным временем
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
 
     if (widget.transaction != null) {
       _amountController.text = widget.transaction!.absoluteAmount.toString();
@@ -265,7 +269,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildDatePicker() {
-    final dateFormat = DateFormat('d MMMM yyyy, HH:mm', 'ru_RU');
+    final dateFormat = DateFormat('d MMMM yyyy', 'ru_RU');
 
     return InkWell(
       onTap: _selectDate,
@@ -286,7 +290,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Дата и время',
+                    'Дата',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -332,30 +336,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedDate.isBefore(today) || _selectedDate.isAfter(today.add(const Duration(days: 7)))
+      initialDate: _selectedDate.isBefore(today) || _selectedDate.isAfter(today.add(const Duration(days: 365)))
           ? today
           : _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: today.add(const Duration(days: 7)), // Allow up to 7 days in future
+      lastDate: today.add(const Duration(days: 365)), // Allow up to 1 year in future
     );
 
     if (date != null && mounted) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDate),
-      );
-
-      if (time != null && mounted) {
-        setState(() {
-          _selectedDate = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
+      setState(() {
+        // Устанавливаем дату с обнуленным временем (00:00:00)
+        _selectedDate = DateTime(date.year, date.month, date.day);
+      });
     }
   }
 

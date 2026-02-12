@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'services/hive_service.dart';
+import 'utils/migrate_dates.dart';
 import 'theme/app_theme.dart';
 import 'screens/main_screen.dart';
 
@@ -9,6 +10,9 @@ void main() async {
 
   // Initialize Hive (also initializes default categories)
   await HiveService.init();
+
+  // Run data migrations (if needed)
+  await checkAndMigrate();
 
   // Initialize date formatting for Russian locale
   await initializeDateFormatting('ru_RU', null);
