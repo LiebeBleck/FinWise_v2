@@ -23,13 +23,18 @@ class TransactionAdapter extends TypeAdapter<Transaction> {
       date: fields[3] as DateTime,
       description: fields[4] as String,
       receiptData: (fields[5] as Map?)?.cast<String, dynamic>(),
+      isPlanned: fields[6] as bool,
+      plannedDate: fields[7] as DateTime?,
+      isRecurring: fields[8] as bool,
+      recurrenceRule: fields[9] as String?,
+      nextRecurrenceDate: fields[10] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Transaction obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +46,17 @@ class TransactionAdapter extends TypeAdapter<Transaction> {
       ..writeByte(4)
       ..write(obj.description)
       ..writeByte(5)
-      ..write(obj.receiptData);
+      ..write(obj.receiptData)
+      ..writeByte(6)
+      ..write(obj.isPlanned)
+      ..writeByte(7)
+      ..write(obj.plannedDate)
+      ..writeByte(8)
+      ..write(obj.isRecurring)
+      ..writeByte(9)
+      ..write(obj.recurrenceRule)
+      ..writeByte(10)
+      ..write(obj.nextRecurrenceDate);
   }
 
   @override

@@ -29,6 +29,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   int? _selectedCategoryId;
   late DateTime _selectedDate;
 
+  // Планируемые траты
+  bool _isPlanned = false;
+  DateTime? _plannedDate;
+  bool _isRecurring = false;
+  String? _recurrenceRule;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +50,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _selectedCategoryId = widget.transaction!.categoryId;
       _selectedDate = widget.transaction!.date;
       _isIncome = widget.transaction!.isIncome;
+      _isPlanned = widget.transaction!.isPlanned;
+      _plannedDate = widget.transaction!.plannedDate;
+      _isRecurring = widget.transaction!.isRecurring;
+      _recurrenceRule = widget.transaction!.recurrenceRule;
     }
   }
 
@@ -94,6 +104,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             // Date Picker
             _buildDatePicker(),
+            const SizedBox(height: 24),
+
+            // === Планируемые траты (v1.1) ===
+            _buildPlannedTransactionToggle(),
+            if (_isPlanned) ...[
+              const SizedBox(height: 16),
+              _buildPlannedDatePicker(),
+              const SizedBox(height: 16),
+              _buildRecurringToggle(),
+              if (_isRecurring) ...[
+                const SizedBox(height: 16),
+                _buildRecurrenceRuleSelector(),
+              ],
+            ],
             const SizedBox(height: 32),
 
             // Save Button
@@ -330,6 +354,256 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  Widget _buildPlannedTransactionToggle() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_available, color: AppTheme.primaryColor),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Планируемая трата',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Запланировать на будущее',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _isPlanned,
+            onChanged: (value) {
+              setState(() {
+                _isPlanned = value;
+                if (!value) {
+                  // Сбросить настройки при отключении
+                  _plannedDate = null;
+                  _isRecurring = false;
+                  _recurrenceRule = null;
+                } else {
+                  // Установить дату по умолчанию (завтра)
+                  final tomorrow = DateTime.now().add(const Duration(days: 1));
+                  _plannedDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+                }
+              });
+            },
+            activeColor: AppTheme.primaryColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlannedDatePicker() {
+    final dateFormat = DateFormat('d MMMM yyyy', 'ru_RU');
+
+    return InkWell(
+      onTap: _selectPlannedDate,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.alarm, color: AppTheme.primaryColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Когда выполнить',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _plannedDate != null
+                        ? dateFormat.format(_plannedDate!)
+                        : 'Выберите дату',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecurringToggle() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.repeat, color: AppTheme.primaryColor),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Повторяющаяся',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Автоматически создавать',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _isRecurring,
+            onChanged: (value) {
+              setState(() {
+                _isRecurring = value;
+                if (!value) {
+                  _recurrenceRule = null;
+                } else {
+                  _recurrenceRule = 'monthly'; // По умолчанию - ежемесячно
+                }
+              });
+            },
+            activeColor: AppTheme.primaryColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecurrenceRuleSelector() {
+    final rules = [
+      {'value': 'daily', 'label': 'Ежедневно', 'icon': Icons.today},
+      {'value': 'weekly', 'label': 'Еженедельно', 'icon': Icons.view_week},
+      {'value': 'monthly', 'label': 'Ежемесячно', 'icon': Icons.calendar_month},
+      {'value': 'yearly', 'label': 'Ежегодно', 'icon': Icons.calendar_today},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Частота повторения',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: rules.map((rule) {
+              final isSelected = _recurrenceRule == rule['value'];
+              return GestureDetector(
+                onTap: () => setState(() => _recurrenceRule = rule['value'] as String),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppTheme.primaryColor.withOpacity(0.2)
+                        : Colors.grey[200],
+                    border: Border.all(
+                      color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        rule['icon'] as IconData,
+                        size: 18,
+                        color: isSelected ? AppTheme.primaryColor : Colors.grey[700],
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        rule['label'] as String,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppTheme.primaryColor : Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectPlannedDate() async {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _plannedDate ?? tomorrow,
+      firstDate: tomorrow, // Можно планировать только на будущее
+      lastDate: DateTime(now.year + 2, 12, 31), // До 2 лет вперёд
+    );
+
+    if (date != null && mounted) {
+      setState(() {
+        _plannedDate = DateTime(date.year, date.month, date.day);
+      });
+    }
+  }
+
   Future<void> _selectDate() async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -361,8 +635,29 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       return;
     }
 
+    // Валидация планируемой траты
+    if (_isPlanned && _plannedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Выберите дату планируемой траты')),
+      );
+      return;
+    }
+
+    if (_isRecurring && _recurrenceRule == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Выберите правило повторения')),
+      );
+      return;
+    }
+
     final amount = double.parse(_amountController.text);
     final box = Hive.box<Transaction>('transactions');
+
+    // Рассчитать nextRecurrenceDate если повторяющаяся
+    DateTime? nextRecurrence;
+    if (_isRecurring && _plannedDate != null && _recurrenceRule != null) {
+      nextRecurrence = _calculateNextRecurrence(_plannedDate!, _recurrenceRule!);
+    }
 
     if (widget.transaction != null) {
       // Edit existing
@@ -370,6 +665,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       widget.transaction!.categoryId = _selectedCategoryId!;
       widget.transaction!.description = _descriptionController.text;
       widget.transaction!.date = _selectedDate;
+      widget.transaction!.isPlanned = _isPlanned;
+      widget.transaction!.plannedDate = _plannedDate;
+      widget.transaction!.isRecurring = _isRecurring;
+      widget.transaction!.recurrenceRule = _recurrenceRule;
+      widget.transaction!.nextRecurrenceDate = nextRecurrence;
       widget.transaction!.save();
     } else {
       // Create new
@@ -379,11 +679,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         categoryId: _selectedCategoryId!,
         date: _selectedDate,
         description: _descriptionController.text,
+        isPlanned: _isPlanned,
+        plannedDate: _plannedDate,
+        isRecurring: _isRecurring,
+        recurrenceRule: _recurrenceRule,
+        nextRecurrenceDate: nextRecurrence,
       );
       box.add(transaction);
     }
 
     Navigator.of(context).pop();
+  }
+
+  /// Рассчитать следующую дату повторения
+  DateTime _calculateNextRecurrence(DateTime currentDate, String rule) {
+    switch (rule) {
+      case 'daily':
+        return currentDate.add(const Duration(days: 1));
+      case 'weekly':
+        return currentDate.add(const Duration(days: 7));
+      case 'monthly':
+        // Добавляем 1 месяц
+        final nextMonth = currentDate.month == 12 ? 1 : currentDate.month + 1;
+        final nextYear = currentDate.month == 12 ? currentDate.year + 1 : currentDate.year;
+        return DateTime(nextYear, nextMonth, currentDate.day);
+      case 'yearly':
+        return DateTime(currentDate.year + 1, currentDate.month, currentDate.day);
+      default:
+        return currentDate;
+    }
   }
 
   void _deleteTransaction() {

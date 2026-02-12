@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../models/budget.dart';
 import '../theme/app_theme.dart';
@@ -37,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context, Box<Transaction> transactionsBox, _) {
           final transactions = transactionsBox.values.toList();
           final filteredTransactions = _filterByPeriod(transactions);
+          final plannedTransactions = _getPlannedTransactions(transactions);
 
           return CustomScrollView(
             slivers: [
@@ -75,6 +78,49 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+
+              // === Планируемые траты (v1.1) ===
+              if (plannedTransactions.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_available, color: AppTheme.primaryColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Планируемые траты',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${plannedTransactions.length}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 140,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: plannedTransactions.length,
+                      itemBuilder: (context, index) {
+                        return _buildPlannedTransactionCard(
+                          plannedTransactions[index],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
 
               // Period Selector
               SliverToBoxAdapter(
@@ -292,9 +338,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return transactions
-        .where((t) => t.date.isAfter(startDate) || t.date.isAtSameMomentAs(startDate))
+        .where((t) =>
+            t.isCompleted && // Только выполненные транзакции
+            (t.date.isAfter(startDate) || t.date.isAtSameMomentAs(startDate)))
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
+  }
+
+  /// Получить планируемые транзакции (отсортированные по дате)
+  List<Transaction> _getPlannedTransactions(List<Transaction> transactions) {
+    return transactions
+        .where((t) => t.isPlanned)
+        .toList()
+      ..sort((a, b) {
+        // Сначала просроченные, потом по дате
+        if (a.isOverdue && !b.isOverdue) return -1;
+        if (!a.isOverdue && b.isOverdue) return 1;
+        return (a.plannedDate ?? DateTime.now())
+            .compareTo(b.plannedDate ?? DateTime.now());
+      });
   }
 
   double _calculateBalance(List<Transaction> transactions) {
@@ -305,6 +367,239 @@ class _HomeScreenState extends State<HomeScreen> {
     return transactions
         .where((t) => t.isExpense)
         .fold(0.0, (sum, t) => sum + t.absoluteAmount);
+  }
+
+  Widget _buildPlannedTransactionCard(Transaction transaction) {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box('categories').listenable(),
+      builder: (context, box, _) {
+        final category = box.get(transaction.categoryId);
+        final categoryName = category?.name ?? 'Без категории';
+
+        Color categoryColor;
+        try {
+          categoryColor = Color(
+            int.parse(category?.color.replaceFirst('#', '0xFF') ?? '0xFFFF9800'),
+          );
+        } catch (e) {
+          categoryColor = Colors.grey;
+        }
+
+        final dateFormat = DateFormat('d MMM', 'ru_RU');
+        final dateText = transaction.plannedDate != null
+            ? dateFormat.format(transaction.plannedDate!)
+            : 'Не указана';
+
+        return Container(
+          width: 200,
+          margin: const EdgeInsets.only(right: 12),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () => _markAsCompleted(transaction),
+              onLongPress: () => _editTransaction(transaction),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: transaction.isOverdue
+                        ? Colors.red.shade300
+                        : transaction.isDueSoon
+                            ? Colors.orange.shade300
+                            : Colors.grey.shade300,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: categoryColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.shopping_bag_outlined,
+                            color: categoryColor,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            categoryName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      transaction.description.isEmpty
+                          ? 'Без описания'
+                          : transaction.description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              transaction.isOverdue
+                                  ? Icons.warning_amber_rounded
+                                  : Icons.calendar_today,
+                              size: 14,
+                              color: transaction.isOverdue
+                                  ? Colors.red
+                                  : transaction.isDueSoon
+                                      ? Colors.orange
+                                      : Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              dateText,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: transaction.isOverdue
+                                    ? Colors.red
+                                    : transaction.isDueSoon
+                                        ? Colors.orange
+                                        : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${transaction.absoluteAmount.toStringAsFixed(0)} ₽',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (transaction.isRecurring) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.repeat, size: 12, color: AppTheme.primaryColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            transaction.recurrenceRuleDisplay,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _markAsCompleted(Transaction transaction) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Отметить как выполненную?'),
+        content: Text(
+          'Трата "${transaction.description}" будет перемещена в историю',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () {
+              transaction.isPlanned = false;
+              transaction.date = DateTime.now();
+
+              // Если повторяющаяся - создать следующую
+              if (transaction.isRecurring && transaction.nextRecurrenceDate != null) {
+                final nextTransaction = Transaction(
+                  id: const Uuid().v4(),
+                  amount: transaction.amount,
+                  categoryId: transaction.categoryId,
+                  date: transaction.nextRecurrenceDate!,
+                  description: transaction.description,
+                  isPlanned: true,
+                  plannedDate: transaction.nextRecurrenceDate,
+                  isRecurring: true,
+                  recurrenceRule: transaction.recurrenceRule,
+                  nextRecurrenceDate: _calculateNextRecurrence(
+                    transaction.nextRecurrenceDate!,
+                    transaction.recurrenceRule!,
+                  ),
+                );
+                Hive.box<Transaction>('transactions').add(nextTransaction);
+              }
+
+              transaction.save();
+              Navigator.of(context).pop();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('✅ Трата выполнена')),
+              );
+            },
+            child: Text(
+              'Выполнить',
+              style: TextStyle(color: AppTheme.primaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editTransaction(Transaction transaction) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AddTransactionScreen(transaction: transaction),
+      ),
+    );
+  }
+
+  DateTime _calculateNextRecurrence(DateTime currentDate, String rule) {
+    switch (rule) {
+      case 'daily':
+        return currentDate.add(const Duration(days: 1));
+      case 'weekly':
+        return currentDate.add(const Duration(days: 7));
+      case 'monthly':
+        final nextMonth = currentDate.month == 12 ? 1 : currentDate.month + 1;
+        final nextYear = currentDate.month == 12 ? currentDate.year + 1 : currentDate.year;
+        return DateTime(nextYear, nextMonth, currentDate.day);
+      case 'yearly':
+        return DateTime(currentDate.year + 1, currentDate.month, currentDate.day);
+      default:
+        return currentDate;
+    }
   }
 
   void _navigateToAddTransaction(bool isIncome) {
