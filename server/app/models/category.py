@@ -19,10 +19,11 @@ class Category(Base):
     color = Column(String(7), nullable=False)  # Hex color, e.g. #F97316
     icon = Column(String(50), nullable=True)  # Icon name/code
     is_default = Column(Boolean, default=False, nullable=False)  # Предустановленная категория
+    type = Column(String(10), default='expense', nullable=False)  # income | expense | both
 
     # Relationships
     user = relationship("User", back_populates="categories")
     transactions = relationship("Transaction", back_populates="category")
 
     def __repr__(self):
-        return f"<Category(id={self.id}, name={self.name}, is_default={self.is_default})>"
+        return f"<Category(id={self.id}, name={self.name}, type={self.type}, is_default={self.is_default})>"

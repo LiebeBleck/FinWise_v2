@@ -12,6 +12,7 @@ from app.schemas.ml_request import (
     RecommendationsRequest,
     RecommendationsResponse,
 )
+from app.services.ml_service import ml_service
 
 router = APIRouter()
 
@@ -30,21 +31,21 @@ async def categorize_transaction(request: CategorizationRequest):
     start_time = time.time()
 
     try:
-        # TODO: Загрузить модель и сделать предсказание
-        # Временная заглушка:
-        category = "Продукты"  # Примерная категоризация
-        confidence = 0.85
+        # Категоризация через ML сервис
+        category, confidence, alternatives = ml_service.categorize(
+            description=request.description,
+            amount=request.amount,
+            merchant_name=request.merchant_name,
+            items=request.items
+        )
 
-        # Имитация обработки
+        # Время обработки
         processing_time = int((time.time() - start_time) * 1000)
 
         return CategorizationResponse(
             category=category,
             confidence=confidence,
-            alternatives=[
-                {"category": "Прочее", "confidence": 0.10},
-                {"category": "Дом и ремонт", "confidence": 0.05}
-            ],
+            alternatives=alternatives,
             processing_time_ms=processing_time
         )
 

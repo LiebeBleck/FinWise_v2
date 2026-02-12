@@ -39,7 +39,21 @@ async def startup_event():
         logger.error(f"❌ Database initialization failed: {e}")
         # Don't crash the app, just log the error
 
-    # TODO: Инициализация Redis, загрузка ML моделей
+    # Загрузка ML моделей
+    try:
+        from app.services.ml_service import ml_service
+        logger.info("🤖 Loading ML categorization model...")
+        ml_service.load_model()
+        if ml_service.is_loaded:
+            logger.info("✅ ML model loaded successfully")
+        else:
+            logger.warning("⚠️  ML model not found. Using fallback categorization.")
+            logger.info("💡 To train the model, run: python -m app.ml.training.train_categorization")
+    except Exception as e:
+        logger.error(f"❌ ML model loading failed: {e}")
+        logger.info("💡 Fallback categorization will be used")
+
+    # TODO: Инициализация Redis
 
 
 @app.on_event("shutdown")

@@ -14,27 +14,41 @@ from app.models.category import Category
 
 
 # Предустановленные категории (соответствуют Flutter приложению)
+# 28 категорий: 18 расходов + 9 доходов + 1 универсальная
 DEFAULT_CATEGORIES = [
-    {"id": 1, "name": "Продукты", "color": "#22C55E", "icon": "shopping_cart", "is_default": True},
-    {"id": 2, "name": "Транспорт", "color": "#3B82F6", "icon": "directions_car", "is_default": True},
-    {"id": 3, "name": "Кафе и рестораны", "color": "#F59E0B", "icon": "restaurant", "is_default": True},
-    {"id": 4, "name": "Развлечения", "color": "#EC4899", "icon": "movie", "is_default": True},
-    {"id": 5, "name": "Здоровье", "color": "#EF4444", "icon": "local_hospital", "is_default": True},
-    {"id": 6, "name": "Одежда", "color": "#8B5CF6", "icon": "checkroom", "is_default": True},
-    {"id": 7, "name": "Образование", "color": "#06B6D4", "icon": "school", "is_default": True},
-    {"id": 8, "name": "Спорт", "color": "#10B981", "icon": "fitness_center", "is_default": True},
-    {"id": 9, "name": "Дом", "color": "#F97316", "icon": "home", "is_default": True},
-    {"id": 10, "name": "Связь", "color": "#6366F1", "icon": "phone", "is_default": True},
-    {"id": 11, "name": "Подарки", "color": "#DB2777", "icon": "card_giftcard", "is_default": True},
-    {"id": 12, "name": "Красота", "color": "#A855F7", "icon": "face", "is_default": True},
-    {"id": 13, "name": "Путешествия", "color": "#14B8A6", "icon": "flight", "is_default": True},
-    {"id": 14, "name": "Такси", "color": "#0EA5E9", "icon": "local_taxi", "is_default": True},
-    {"id": 15, "name": "Аптека", "color": "#DC2626", "icon": "local_pharmacy", "is_default": True},
-    {"id": 16, "name": "Подписки", "color": "#7C3AED", "icon": "subscriptions", "is_default": True},
-    {"id": 17, "name": "Электроника", "color": "#2563EB", "icon": "devices", "is_default": True},
-    {"id": 18, "name": "Книги", "color": "#059669", "icon": "menu_book", "is_default": True},
-    {"id": 19, "name": "Зарплата", "color": "#16A34A", "icon": "attach_money", "is_default": True},
-    {"id": 20, "name": "Прочее", "color": "#6B7280", "icon": "more_horiz", "is_default": True},
+    # Расходы
+    {"id": 1, "name": "Продукты", "color": "#4CAF50", "icon": "shopping_cart", "is_default": True, "type": "expense"},
+    {"id": 2, "name": "Рестораны и кафе", "color": "#FF9800", "icon": "restaurant", "is_default": True, "type": "expense"},
+    {"id": 3, "name": "Транспорт", "color": "#2196F3", "icon": "directions_car", "is_default": True, "type": "expense"},
+    {"id": 4, "name": "Такси", "color": "#FFC107", "icon": "local_taxi", "is_default": True, "type": "expense"},
+    {"id": 5, "name": "Топливо (АЗС)", "color": "#9C27B0", "icon": "local_gas_station", "is_default": True, "type": "expense"},
+    {"id": 6, "name": "Коммунальные услуги", "color": "#795548", "icon": "water_drop", "is_default": True, "type": "expense"},
+    {"id": 7, "name": "Интернет и связь", "color": "#00BCD4", "icon": "wifi", "is_default": True, "type": "expense"},
+    {"id": 8, "name": "Подписки", "color": "#E91E63", "icon": "subscriptions", "is_default": True, "type": "expense"},
+    {"id": 9, "name": "Одежда и обувь", "color": "#673AB7", "icon": "checkroom", "is_default": True, "type": "expense"},
+    {"id": 10, "name": "Красота и здоровье", "color": "#F06292", "icon": "face", "is_default": True, "type": "expense"},
+    {"id": 11, "name": "Аптека", "color": "#EF5350", "icon": "local_pharmacy", "is_default": True, "type": "expense"},
+    {"id": 12, "name": "Спорт и фитнес", "color": "#66BB6A", "icon": "fitness_center", "is_default": True, "type": "expense"},
+    {"id": 13, "name": "Развлечения", "color": "#AB47BC", "icon": "movie", "is_default": True, "type": "expense"},
+    {"id": 14, "name": "Путешествия", "color": "#42A5F5", "icon": "flight", "is_default": True, "type": "expense"},
+    {"id": 15, "name": "Образование", "color": "#5C6BC0", "icon": "school", "is_default": True, "type": "expense"},
+    {"id": 16, "name": "Дом и ремонт", "color": "#8D6E63", "icon": "home", "is_default": True, "type": "expense"},
+    {"id": 17, "name": "Электроника", "color": "#78909C", "icon": "devices", "is_default": True, "type": "expense"},
+    {"id": 18, "name": "Благотворительность", "color": "#26C6DA", "icon": "volunteer_activism", "is_default": True, "type": "expense"},
+
+    # Универсальная
+    {"id": 19, "name": "Прочее", "color": "#9E9E9E", "icon": "more_horiz", "is_default": True, "type": "both"},
+
+    # Доходы
+    {"id": 20, "name": "Зарплата", "color": "#4CAF50", "icon": "attach_money", "is_default": True, "type": "income"},
+    {"id": 21, "name": "Фриланс", "color": "#8BC34A", "icon": "work", "is_default": True, "type": "income"},
+    {"id": 22, "name": "Инвестиции", "color": "#CDDC39", "icon": "trending_up", "is_default": True, "type": "income"},
+    {"id": 23, "name": "Подарки", "color": "#EC407A", "icon": "card_giftcard", "is_default": True, "type": "income"},
+    {"id": 24, "name": "Бонусы/Премии", "color": "#FFD700", "icon": "stars", "is_default": True, "type": "income"},
+    {"id": 25, "name": "Аренда", "color": "#FF9800", "icon": "home_work", "is_default": True, "type": "income"},
+    {"id": 26, "name": "Возврат средств", "color": "#03A9F4", "icon": "currency_exchange", "is_default": True, "type": "income"},
+    {"id": 27, "name": "Продажа", "color": "#9C27B0", "icon": "sell", "is_default": True, "type": "income"},
+    {"id": 28, "name": "Кэшбэк", "color": "#00BCD4", "icon": "savings", "is_default": True, "type": "income"},
 ]
 
 
