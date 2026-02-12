@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../theme/app_theme.dart';
 import '../models/receipt.dart';
+import '../services/fns_api_service.dart';
+import '../services/sync_service.dart';
 import 'receipt_preview_screen.dart';
 
 class ScanReceiptScreen extends StatefulWidget {
@@ -261,7 +263,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
     );
   }
 
-  void _onQRDetected(BarcodeCapture capture) {
+  void _onQRDetected(BarcodeCapture capture) async {
     if (_isProcessing) return;
 
     final List<Barcode> barcodes = capture.barcodes;
@@ -274,21 +276,95 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
 
     setState(() => _isProcessing = true);
 
-    // Парсинг QR-кода
-    try {
-      final receipt = Receipt.fromQR(qrData);
-
-      // Переход к экрану предпросмотра
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => ReceiptPreviewScreen(receipt: receipt),
+    // Показываем индикатор загрузки
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('Получение данных чека...'),
+            ],
+          ),
+          duration: Duration(seconds: 3),
         ),
       );
+    }
+
+    Receipt receipt;
+
+    try {
+      // Пытаемся получить детальные данные через API ФНС
+      final syncService = SyncService();
+      final fnsService = FnsApiService();
+
+      if (await syncService.hasConnection()) {
+        final detailedReceipt = await fnsService.getReceiptDetails(qrData);
+        receipt = detailedReceipt ?? Receipt.fromQR(qrData);
+
+        if (detailedReceipt != null && detailedReceipt.items.isNotEmpty) {
+          // Успешно получили детали
+          if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Данные чека получены'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+        } else {
+          // API не вернул детали - используем базовый парсинг
+          if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚠️ Используются базовые данные QR'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      } else {
+        // Офлайн режим - добавляем в очередь синхронизации
+        receipt = Receipt.fromQR(qrData);
+
+        await syncService.addToQueue(
+          type: 'qr_receipt_details',
+          data: {'qr_data': qrData},
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('📶 Офлайн: данные будут получены позже'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+
+      // Переход к экрану предпросмотра
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ReceiptPreviewScreen(receipt: receipt),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка парсинга QR: $e')),
-      );
-      setState(() => _isProcessing = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
+        setState(() => _isProcessing = false);
+      }
     }
   }
 

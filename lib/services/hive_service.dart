@@ -3,6 +3,7 @@ import '../models/category.dart';
 import '../models/transaction.dart';
 import '../models/user.dart';
 import '../models/budget.dart';
+import '../models/sync_queue_item.dart';
 
 class HiveService {
   static const String userBoxName = 'user';
@@ -10,6 +11,7 @@ class HiveService {
   static const String transactionsBoxName = 'transactions';
   static const String budgetBoxName = 'budget';
   static const String keywordsBoxName = 'category_keywords';
+  static const String syncQueueBoxName = 'sync_queue';
 
   /// Инициализация Hive
   static Future<void> init() async {
@@ -21,6 +23,7 @@ class HiveService {
     Hive.registerAdapter(TransactionAdapter());
     Hive.registerAdapter(UserAdapter());
     Hive.registerAdapter(BudgetAdapter());
+    Hive.registerAdapter(SyncQueueItemAdapter());
 
     // Открытие boxes
     await Hive.openBox<User>(userBoxName);
@@ -28,6 +31,7 @@ class HiveService {
     await Hive.openBox<Transaction>(transactionsBoxName);
     await Hive.openBox<Budget>(budgetBoxName);
     await Hive.openBox<Map>(keywordsBoxName);
+    await Hive.openBox<SyncQueueItem>(syncQueueBoxName);
 
     // Инициализация категорий по умолчанию
     await _initDefaultCategories();
@@ -62,6 +66,9 @@ class HiveService {
   /// Получить box ключевых слов
   static Box<Map> get keywordsBox => Hive.box<Map>(keywordsBoxName);
 
+  /// Получить box очереди синхронизации
+  static Box<SyncQueueItem> get syncQueueBox => Hive.box<SyncQueueItem>(syncQueueBoxName);
+
   /// Получить пользователя (или создать нового)
   static Future<User> getOrCreateUser() async {
     final box = userBox;
@@ -89,6 +96,7 @@ class HiveService {
     await transactionsBox.clear();
     await budgetBox.clear();
     await keywordsBox.clear();
+    await syncQueueBox.clear();
 
     // Переинициализация категорий
     await _initDefaultCategories();
