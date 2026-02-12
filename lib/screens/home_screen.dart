@@ -227,16 +227,17 @@ class _HomeScreenState extends State<HomeScreen> {
             balance: _calculateBalance(transactions),
             budgetAmount: 0,
             spent: _calculateSpent(transactions),
-            onSetBudget: () {
-              // TODO: Navigate to budget settings
-            },
+            onSetBudget: _showSetBudgetDialog,
           );
         }
 
-        return BudgetProgressCard(
-          balance: _calculateBalance(transactions),
-          budgetAmount: budget.monthlyAmount,
-          spent: _calculateSpent(transactions),
+        return GestureDetector(
+          onLongPress: _showSetBudgetDialog,
+          child: BudgetProgressCard(
+            balance: _calculateBalance(transactions),
+            budgetAmount: budget.monthlyAmount,
+            spent: _calculateSpent(transactions),
+          ),
         );
       },
     );
@@ -600,6 +601,119 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return currentDate;
     }
+  }
+
+  void _showSetBudgetDialog() {
+    final budgetController = TextEditingController();
+    final budgetBox = Hive.box<Budget>('budget');
+    final existingBudget = budgetBox.get('current');
+
+    if (existingBudget != null) {
+      budgetController.text = existingBudget.monthlyAmount.toStringAsFixed(0);
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(existingBudget != null ? 'Изменить бюджет' : 'Установить бюджет'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Укажите ежемесячный бюджет на расходы',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: budgetController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Сумма бюджета',
+                hintText: '0',
+                prefixText: '₽ ',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Бюджет обновляется каждый месяц',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (existingBudget != null)
+            TextButton(
+              onPressed: () {
+                budgetBox.delete('current');
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Бюджет удален')),
+                );
+              },
+              child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () {
+              final amount = double.tryParse(budgetController.text);
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Введите корректную сумму')),
+                );
+                return;
+              }
+
+              final now = DateTime.now();
+              final budget = Budget(
+                monthlyAmount: amount,
+                periodStart: DateTime(now.year, now.month, 1),
+              );
+
+              budgetBox.put('current', budget);
+              Navigator.of(context).pop();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    existingBudget != null
+                        ? 'Бюджет обновлен: ${amount.toStringAsFixed(0)} ₽'
+                        : 'Бюджет установлен: ${amount.toStringAsFixed(0)} ₽',
+                  ),
+                ),
+              );
+            },
+            child: Text(
+              existingBudget != null ? 'Обновить' : 'Установить',
+              style: TextStyle(color: AppTheme.primaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _navigateToAddTransaction(bool isIncome) {

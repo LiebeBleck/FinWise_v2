@@ -366,21 +366,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         children: [
           Icon(Icons.event_available, color: AppTheme.primaryColor),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Планируемая трата',
-                  style: TextStyle(
+                  _isIncome ? 'Планируемый доход' : 'Планируемая трата',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Запланировать на будущее',
-                  style: TextStyle(
+                  _isIncome ? 'Запланировать поступление' : 'Запланировать на будущее',
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
                   ),
