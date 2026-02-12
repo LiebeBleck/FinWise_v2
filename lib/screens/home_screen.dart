@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../widgets/budget_progress_card.dart';
 import '../widgets/transaction_list_item.dart';
 import 'add_transaction_screen.dart';
+import 'scan_receipt_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -70,7 +71,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           icon: Icons.qr_code_scanner,
                           label: 'Сканировать',
                           onTap: () {
-                            // TODO: Navigate to scan receipt
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const ScanReceiptScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),
