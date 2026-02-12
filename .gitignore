@@ -1,9 +1,10 @@
 # Claude Code documentation (internal use only)
 CLAUDE.md
 
-# Local README files (for personal use)
+# Local documentation files (for personal use, internal only)
 server/README.md
 server/ML_MODELS.md
+server/DATABASE.md
 
 # Miscellaneous
 *.class
