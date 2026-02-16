@@ -345,7 +345,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE8F5E9),
+                    color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFFFF7ED),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(30),
                       topRight: Radius.circular(30),
@@ -390,7 +390,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       color: AppTheme.primaryColor,
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE8F5E9),
+                                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFFFF7ED),
                                         width: 3,
                                       ),
                                     ),
@@ -589,7 +589,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         prefixIcon: Icon(icon, color: isDark ? Colors.grey[400] : Colors.grey[600]),
         suffix: suffix,
         filled: true,
-        fillColor: isDark ? Colors.grey[850] : const Color(0xFFC8E6C9),
+        fillColor: isDark ? Colors.grey[850] : const Color(0xFFFFEDD5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -614,7 +614,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
         prefixIcon: Icon(icon, color: isDark ? Colors.grey[400] : Colors.grey[600]),
         filled: true,
-        fillColor: isDark ? Colors.grey[850] : const Color(0xFFC8E6C9),
+        fillColor: isDark ? Colors.grey[850] : const Color(0xFFFFEDD5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -636,7 +636,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[850] : const Color(0xFFC8E6C9),
+        color: isDark ? Colors.grey[850] : const Color(0xFFFFEDD5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -683,7 +683,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey[400] : Colors.grey[600]),
           onTap: _handleChangePassword,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          tileColor: isDark ? Colors.grey[850] : const Color(0xFFC8E6C9),
+          tileColor: isDark ? Colors.grey[850] : const Color(0xFFFFEDD5),
         ),
 
         const SizedBox(height: 12),
@@ -698,7 +698,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey[400] : Colors.grey[600]),
           onTap: _handleExport,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          tileColor: isDark ? Colors.grey[850] : const Color(0xFFC8E6C9),
+          tileColor: isDark ? Colors.grey[850] : const Color(0xFFFFEDD5),
         ),
 
         const SizedBox(height: 12),
@@ -713,7 +713,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey[400] : Colors.grey[600]),
           onTap: _handleImport,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          tileColor: isDark ? Colors.grey[850] : const Color(0xFFC8E6C9),
+          tileColor: isDark ? Colors.grey[850] : const Color(0xFFFFEDD5),
         ),
       ],
     );

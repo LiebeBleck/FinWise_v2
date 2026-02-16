@@ -147,7 +147,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE8F5E9),
+                    color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFFFF7ED),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(30),
                       topRight: Radius.circular(30),
@@ -215,31 +215,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           items: [
                             _MenuItem(
                               icon: Icons.person_outline,
-                              iconColor: const Color(0xFF2196F3),
+                              iconColor: AppTheme.primaryColor,
                               title: 'Edit Profile',
                               onTap: _handleEditProfile,
                             ),
                             _MenuItem(
                               icon: Icons.shield_outlined,
-                              iconColor: const Color(0xFF2196F3),
+                              iconColor: AppTheme.primaryColor,
                               title: 'Security',
                               onTap: () => _showComingSoon('Security'),
                             ),
                             _MenuItem(
                               icon: Icons.settings_outlined,
-                              iconColor: const Color(0xFF2196F3),
+                              iconColor: AppTheme.primaryColor,
                               title: 'Setting',
                               onTap: () => _showComingSoon('Setting'),
                             ),
                             _MenuItem(
                               icon: Icons.help_outline,
-                              iconColor: const Color(0xFF2196F3),
+                              iconColor: AppTheme.primaryColor,
                               title: 'Help',
                               onTap: () => _showComingSoon('Help'),
                             ),
                             _MenuItem(
                               icon: Icons.logout,
-                              iconColor: const Color(0xFF2196F3),
+                              iconColor: AppTheme.primaryColor,
                               title: 'Logout',
                               onTap: _handleLogout,
                             ),
