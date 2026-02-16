@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import '../theme/app_theme.dart';
-import '../services/export_import_service.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
-import '../models/budget.dart';
+import 'edit_profile_screen.dart';
+import 'registration_screen.dart';
 
-/// Экран профиля и настроек
+/// Современный экран профиля в стиле дизайна
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -16,9 +15,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   User? _currentUser;
-  Budget? _currentBudget;
-  bool _isExporting = false;
-  bool _isImporting = false;
 
   @override
   void initState() {
@@ -28,58 +24,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     _currentUser = await AuthService.getCurrentUser();
-    final budgetsBox = await Hive.openBox<Budget>('budgets');
-    if (budgetsBox.isNotEmpty) {
-      _currentBudget = budgetsBox.values.first;
-    }
     if (mounted) setState(() {});
   }
 
-  Future<void> _handleExport() async {
-    setState(() => _isExporting = true);
-
-    try {
-      final result = await ExportImportService.exportToJSON();
-
-      if (!mounted) return;
-
-      if (result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Экспорт завершён!\n'
-              'Транзакций: ${result.transactionsCount}\n'
-              'Категорий: ${result.categoriesCount}\n'
-              'Бюджетов: ${result.budgetsCount}\n\n'
-              'Файл сохранён: ${result.filePath}',
-            ),
-            duration: const Duration(seconds: 5),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Ошибка экспорта: ${result.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isExporting = false);
-    }
-  }
-
-  Future<void> _handleImport() async {
+  Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('⚠️ Импорт данных'),
-        content: const Text(
-          'Импорт добавит данные из файла к существующим.\n\n'
-          'Дубликаты транзакций будут пропущены.\n\n'
-          'Продолжить?',
-        ),
+        title: const Text('Выход из аккаунта'),
+        content: const Text('Вы действительно хотите выйти?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -87,434 +40,299 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Импортировать'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Выйти'),
           ),
         ],
       ),
     );
 
-    if (confirm != true) return;
-
-    setState(() => _isImporting = true);
-
-    try {
-      final result = await ExportImportService.importFromJSON();
-
-      if (!mounted) return;
-
-      if (result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Импорт завершён!\n'
-              'Транзакций: ${result.transactionsCount}\n'
-              'Категорий: ${result.categoriesCount}\n'
-              'Бюджетов: ${result.budgetsCount}',
-            ),
-            duration: const Duration(seconds: 4),
-            backgroundColor: Colors.green,
+    if (confirm == true) {
+      await AuthService.logout();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const RegistrationScreen(isLogin: true),
           ),
-        );
-
-        setState(() {});
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ ${result.error}'),
-            backgroundColor: Colors.red,
-          ),
+          (route) => false,
         );
       }
-    } finally {
-      if (mounted) setState(() => _isImporting = false);
     }
   }
 
-  Future<void> _handleChangeCurrency() async {
-    if (_currentUser == null) return;
+  void _handleEditProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EditProfileScreen(),
+      ),
+    ).then((_) => _loadUserData());
+  }
 
-    final newCurrency = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Выбор валюты'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildCurrencyOption('₽', 'Рубль'),
-            _buildCurrencyOption('\$', 'Доллар'),
-            _buildCurrencyOption('€', 'Евро'),
-            _buildCurrencyOption('£', 'Фунт'),
-          ],
-        ),
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature - скоро будет доступно'),
+        duration: const Duration(seconds: 2),
       ),
     );
-
-    if (newCurrency == null || newCurrency == _currentUser!.currency) return;
-
-    _currentUser!.currency = newCurrency;
-    await AuthService.updateUser(_currentUser!);
-    setState(() {});
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Валюта изменена на $newCurrency')),
-      );
-    }
-  }
-
-  Widget _buildCurrencyOption(String currency, String name) {
-    return ListTile(
-      title: Text('$currency $name'),
-      onTap: () => Navigator.pop(context, currency),
-    );
-  }
-
-  Future<void> _handleChangeBudget() async {
-    if (_currentBudget == null) return;
-
-    final controller = TextEditingController(
-      text: _currentBudget!.monthlyAmount.toStringAsFixed(0),
-    );
-
-    final newAmount = await showDialog<double>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Изменить бюджет'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'Месячный бюджет',
-            suffix: Text(_currentUser?.currency ?? '₽'),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(controller.text);
-              Navigator.pop(context, amount);
-            },
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
-    );
-
-    if (newAmount == null || newAmount <= 0) return;
-
-    _currentBudget!.monthlyAmount = newAmount;
-    await _currentBudget!.save();
-    setState(() {});
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Бюджет обновлён')),
-      );
-    }
-  }
-
-  Future<void> _handleToggleTheme(bool isDark) async {
-    if (_currentUser == null) return;
-
-    _currentUser!.theme = isDark ? 'dark' : 'light';
-    await AuthService.updateUser(_currentUser!);
-
-    if (mounted) {
-      // Перезапуск приложения для применения темы
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Тема изменена. Перезапустите приложение для применения.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-
-    setState(() {});
-  }
-
-  Future<void> _handleChangePassword() async {
-    final formKey = GlobalKey<FormState>();
-    final oldPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Смена пароля'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: oldPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Старый пароль'),
-                validator: (v) => v == null || v.isEmpty ? 'Введите старый пароль' : null,
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: newPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Новый пароль'),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Введите новый пароль';
-                  if (v.length < 6) return 'Минимум 6 символов';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: confirmPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Подтверждение'),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Подтвердите пароль';
-                  if (v != newPasswordController.text) return 'Пароли не совпадают';
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-
-              final success = await AuthService.changePassword(
-                oldPassword: oldPasswordController.text,
-                newPassword: newPasswordController.text,
-              );
-
-              if (context.mounted) Navigator.pop(context, success);
-            },
-            child: const Text('Изменить'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Пароль успешно изменён'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else if (result == false && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Неверный старый пароль'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Генерируем ID из username (первые 8 символов email hash)
+    final userId = _currentUser?.email?.hashCode.abs().toString().padLeft(8, '0').substring(0, 8) ?? '00000000';
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Профиль'),
-        backgroundColor: AppTheme.primaryColor,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Аватар и имя
-          Center(
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _currentUser?.username ?? 'Пользователь',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment(0, 0.3),
+            colors: isDark
+                ? [
+                    const Color(0xFFD97706),
+                    const Color(0xFF1E1E1E),
+                  ]
+                : [
+                    AppTheme.primaryColor,
+                    Colors.white,
+                  ],
           ),
-
-          const SizedBox(height: 32),
-
-          // Секция: Настройки
-          const Text(
-            'Настройки',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.monetization_on),
-                  title: const Text('Валюта'),
-                  subtitle: Text(_currentUser?.currency ?? '₽'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _handleChangeCurrency,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.account_balance_wallet),
-                  title: const Text('Месячный бюджет'),
-                  subtitle: Text(
-                    '${_currentBudget?.monthlyAmount.toStringAsFixed(0) ?? '0'} ${_currentUser?.currency ?? '₽'}',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _handleChangeBudget,
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.dark_mode),
-                  title: const Text('Тёмная тема'),
-                  subtitle: const Text('Перезапустите после изменения'),
-                  value: _currentUser?.theme == 'dark',
-                  onChanged: _handleToggleTheme,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Секция: Безопасность
-          const Text(
-            'Безопасность',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.lock_outline),
-              title: const Text('Сменить пароль'),
-              subtitle: const Text('Изменить пароль для входа'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _handleChangePassword,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Секция: Резервное копирование
-          const Text(
-            'Резервное копирование',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: Icon(
-                    Icons.upload_file,
-                    color: AppTheme.primaryColor,
-                  ),
-                  title: const Text('Экспорт данных'),
-                  subtitle: const Text('Сохранить все данные в JSON файл'),
-                  trailing: _isExporting
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.chevron_right),
-                  onTap: _isExporting ? null : _handleExport,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: Icon(
-                    Icons.download,
-                    color: AppTheme.primaryColor,
-                  ),
-                  title: const Text('Импорт данных'),
-                  subtitle: const Text('Восстановить данные из JSON файла'),
-                  trailing: _isImporting
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.chevron_right),
-                  onTap: _isImporting ? null : _handleImport,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Информация
-          Card(
-            color: Colors.blue.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
-                      Text(
-                        'О резервном копировании',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
-                        ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '• Экспорт сохраняет все транзакции, категории и бюджеты\n'
-                    '• Файл сохраняется в папку "Документы"\n'
-                    '• Импорт не удаляет существующие данные\n'
-                    '• Дубликаты автоматически пропускаются',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue.shade700,
-                      height: 1.5,
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.notifications_outlined,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Основная карточка с контентом
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE8F5E9),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
                     ),
                   ),
-                ],
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        // Аватар
+                        Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                                  width: 3,
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.grey[300],
+                                backgroundImage: const AssetImage('assets/default_avatar.png'),
+                                onBackgroundImageError: (exception, stackTrace) {},
+                                child: Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Имя пользователя
+                        Text(
+                          _currentUser?.username ?? 'Пользователь',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+
+                        const SizedBox(height: 4),
+
+                        // ID
+                        Text(
+                          'ID: $userId',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? Colors.grey[400] : Colors.grey[700],
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Меню опций
+                        _buildMenuCard(
+                          isDark: isDark,
+                          items: [
+                            _MenuItem(
+                              icon: Icons.person_outline,
+                              iconColor: const Color(0xFF2196F3),
+                              title: 'Edit Profile',
+                              onTap: _handleEditProfile,
+                            ),
+                            _MenuItem(
+                              icon: Icons.shield_outlined,
+                              iconColor: const Color(0xFF2196F3),
+                              title: 'Security',
+                              onTap: () => _showComingSoon('Security'),
+                            ),
+                            _MenuItem(
+                              icon: Icons.settings_outlined,
+                              iconColor: const Color(0xFF2196F3),
+                              title: 'Setting',
+                              onTap: () => _showComingSoon('Setting'),
+                            ),
+                            _MenuItem(
+                              icon: Icons.help_outline,
+                              iconColor: const Color(0xFF2196F3),
+                              title: 'Help',
+                              onTap: () => _showComingSoon('Help'),
+                            ),
+                            _MenuItem(
+                              icon: Icons.logout,
+                              iconColor: const Color(0xFF2196F3),
+                              title: 'Logout',
+                              onTap: _handleLogout,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
+  Widget _buildMenuCard({
+    required bool isDark,
+    required List<_MenuItem> items,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          final isLast = index == items.length - 1;
+
+          return Column(
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: item.iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    item.icon,
+                    color: item.iconColor,
+                    size: 24,
+                  ),
+                ),
+                title: Text(
+                  item.title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                onTap: item.onTap,
+              ),
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  indent: 72,
+                  endIndent: 20,
+                  color: isDark ? Colors.grey[800] : Colors.grey[200],
+                ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _MenuItem {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final VoidCallback onTap;
+
+  _MenuItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.onTap,
+  });
 }
