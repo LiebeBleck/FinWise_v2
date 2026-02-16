@@ -25,8 +25,8 @@ class SyncService {
     });
 
     // Также запускать при изменении подключения
-    _connectivity.onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none && !_isSyncing) {
+    _connectivity.onConnectivityChanged.listen((results) {
+      if (!results.contains(ConnectivityResult.none) && !_isSyncing) {
         processSyncQueue();
       }
     });
@@ -40,8 +40,8 @@ class SyncService {
 
   /// Проверка подключения к интернету
   Future<bool> hasConnection() async {
-    final result = await _connectivity.checkConnectivity();
-    return result != ConnectivityResult.none;
+    final results = await _connectivity.checkConnectivity();
+    return !results.contains(ConnectivityResult.none);
   }
 
   /// Добавить элемент в очередь синхронизации
