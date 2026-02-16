@@ -29,6 +29,7 @@ class AuthService {
       final usersBox = await Hive.openBox<User>('users');
       final user = User(
         username: nickname,
+        email: email,
         currency: currency,
         timezone: 'Europe/Moscow', // По умолчанию
         theme: 'light', // По умолчанию светлая тема
@@ -50,6 +51,26 @@ class AuthService {
       return true;
     } catch (e) {
       print('Registration error: $e');
+      return false;
+    }
+  }
+
+  /// Вход пользователя (проверка email и пароля)
+  static Future<bool> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      // Получаем пользователя
+      final user = await getCurrentUser();
+      if (user == null || user.email != email) {
+        return false;
+      }
+
+      // Проверяем пароль
+      return await verifyPassword(password);
+    } catch (e) {
+      print('Login error: $e');
       return false;
     }
   }
