@@ -22,73 +22,107 @@ class TransactionListItem extends StatelessWidget {
     final dateFormat = DateFormat('d MMM', 'ru_RU');
     final numberFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
 
+    final categoryColor = _getCategoryColor(category);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: ListTile(
+      child: InkWell(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: _getCategoryColor(category).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            _getCategoryIcon(category?.name),
-            color: _getCategoryColor(category),
-            size: 24,
-          ),
-        ),
-        title: Text(
-          transaction.description.isNotEmpty
-              ? transaction.description
-              : category?.name ?? 'Без категории',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Row(
-          children: [
-            Flexible(
-              child: Text(
-                category?.name ?? 'Без категории',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              // Circular icon
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: categoryColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                child: Icon(
+                  _getCategoryIcon(category?.name),
+                  color: categoryColor,
+                  size: 22,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '•',
-              style: TextStyle(color: Colors.grey[400]),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              dateFormat.format(transaction.date),
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
+              const SizedBox(width: 12),
+
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      transaction.description.isNotEmpty
+                          ? transaction.description
+                          : category?.name ?? 'Без категории',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E1E1E),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Text(
+                          dateFormat.format(transaction.date),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                        Text(
+                          '  •  ',
+                          style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                        ),
+                        Flexible(
+                          child: Text(
+                            category?.name ?? 'Без категории',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: categoryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        trailing: Text(
-          '${transaction.isIncome ? '+' : '-'}${numberFormat.format(transaction.absoluteAmount)}',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: transaction.isIncome ? Colors.green[600] : Colors.red[600],
+
+              const SizedBox(width: 8),
+
+              // Amount
+              Text(
+                '${transaction.isIncome ? '+' : '-'}${numberFormat.format(transaction.absoluteAmount)}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: transaction.isIncome
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFDC2626),
+                ),
+              ),
+            ],
           ),
         ),
       ),

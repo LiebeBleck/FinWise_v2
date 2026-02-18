@@ -4,11 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../models/budget.dart';
+import '../models/user.dart';
 import '../theme/app_theme.dart';
-import '../widgets/budget_progress_card.dart';
 import '../widgets/transaction_list_item.dart';
 import 'add_transaction_screen.dart';
 import 'scan_receipt_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,18 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text('FinWise'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Notifications
-            },
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFFAFAFA),
       body: ValueListenableBuilder(
         valueListenable: Hive.box<Transaction>('transactions').listenable(),
         builder: (context, Box<Transaction> transactionsBox, _) {
@@ -42,53 +32,90 @@ class _HomeScreenState extends State<HomeScreen> {
           final filteredTransactions = _filterByPeriod(transactions);
           final plannedTransactions = _getPlannedTransactions(transactions);
 
+          final balance = _calculateBalance(filteredTransactions);
+          final spent = _calculateSpent(filteredTransactions);
+          final income = _calculateIncome(filteredTransactions);
+
           return CustomScrollView(
             slivers: [
-              // Budget Card
+              // Custom Header with gradient
+              SliverToBoxAdapter(
+                child: _buildHeader(),
+              ),
+
+              // Account Balance Card
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildBudgetCard(filteredTransactions),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: _buildAccountBalanceCard(balance, spent, income),
                 ),
               ),
 
               // Quick Actions
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildQuickActionButton(
-                          icon: Icons.add,
-                          label: 'Добавить',
-                          onTap: () => _navigateToAddTransaction(false),
-                        ),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.grey.shade200,
+                        width: 1.5,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildQuickActionButton(
-                          icon: Icons.qr_code_scanner,
-                          label: 'Сканировать',
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const ScanReceiptScreen(),
-                              ),
-                            );
-                          },
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
+                      ],
+                    ),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickActionButton(
+                              icon: Icons.add_circle_outline,
+                              label: 'Добавить',
+                              onTap: () => _navigateToAddTransaction(false),
+                              isLeft: true,
+                            ),
+                          ),
+                          VerticalDivider(
+                            width: 1,
+                            thickness: 1.5,
+                            color: Colors.grey.shade200,
+                            indent: 12,
+                            endIndent: 12,
+                          ),
+                          Expanded(
+                            child: _buildQuickActionButton(
+                              icon: Icons.qr_code_scanner,
+                              label: 'Сканировать',
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ScanReceiptScreen(),
+                                  ),
+                                );
+                              },
+                              isLeft: false,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
 
-              // === Планируемые траты (v1.1) ===
+              // Planned Transactions
               if (plannedTransactions.isNotEmpty) ...[
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     child: Row(
                       children: [
                         Icon(Icons.event_available, color: AppTheme.primaryColor, size: 20),
@@ -100,11 +127,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                         ),
                         const Spacer(),
-                        Text(
-                          '${plannedTransactions.length}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey[600],
-                              ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${plannedTransactions.length}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -125,12 +161,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
               ],
 
               // Period Selector
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: _buildPeriodSelector(),
                 ),
               ),
@@ -138,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Transactions List Header
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -148,11 +185,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                       ),
-                      Text(
-                        '${filteredTransactions.length}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${filteredTransactions.length}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -166,17 +212,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.receipt_long_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.receipt_long_outlined,
+                            size: 56,
+                            color: AppTheme.primaryColor.withOpacity(0.5),
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
+                        const SizedBox(height: 20),
+                        const Text(
                           'Нет транзакций',
                           style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E1E1E),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -199,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return TransactionListItem(
                         transaction: transaction,
                         onTap: () {
-                          // TODO: Navigate to transaction details
+                          _editTransaction(transaction);
                         },
                       );
                     },
@@ -209,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Bottom padding
               const SliverToBoxAdapter(
-                child: SizedBox(height: 80),
+                child: SizedBox(height: 100),
               ),
             ],
           );
@@ -217,32 +271,503 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddTransaction(false),
-        child: const Icon(Icons.add),
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildBudgetCard(List<Transaction> transactions) {
+  Widget _buildHeader() {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<User>('users').listenable(),
+      builder: (context, Box<User> usersBox, _) {
+        final user = usersBox.isNotEmpty ? usersBox.values.first : null;
+        final username = user?.username ?? 'Пользователь';
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.primaryColor,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(24),
+              bottomRight: Radius.circular(24),
+            ),
+          ),
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 20,
+            right: 20,
+            bottom: 20,
+          ),
+          child: Row(
+            children: [
+              // Левая часть: приветствие
+              Expanded(
+                child: Row(
+                  children: [
+                    // Аватар-иконка
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_outline,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Привет,',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        Text(
+                          username,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Правая часть: колокольчик
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAccountBalanceCard(double balance, double spent, double income) {
     return ValueListenableBuilder(
       valueListenable: Hive.box<Budget>('budget').listenable(),
       builder: (context, Box<Budget> budgetBox, _) {
         final budget = budgetBox.get('current');
-        if (budget == null) {
-          return BudgetProgressCard(
-            balance: _calculateBalance(transactions),
-            budgetAmount: 0,
-            spent: _calculateSpent(transactions),
-            onSetBudget: _showSetBudgetDialog,
-          );
+        final budgetAmount = budget?.monthlyAmount ?? 0;
+        final progress = budgetAmount > 0 ? (spent / budgetAmount).clamp(0.0, 1.0) : 0.0;
+        final progressPercent = (progress * 100).toStringAsFixed(0);
+
+        final numberFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
+
+        String motivationalMsg = '';
+        if (budgetAmount > 0) {
+          if (progress < 0.5) {
+            motivationalMsg = '$progressPercent% расходов бюджета. Отличный контроль!';
+          } else if (progress < 0.8) {
+            motivationalMsg = '$progressPercent% расходов бюджета. Следите за тратами.';
+          } else if (progress < 1.0) {
+            motivationalMsg = '$progressPercent% расходов бюджета. Бюджет почти исчерпан!';
+          } else {
+            motivationalMsg = 'Бюджет превышен на ${numberFormat.format(spent - budgetAmount)}!';
+          }
         }
 
-        return GestureDetector(
-          onLongPress: _showSetBudgetDialog,
-          child: BudgetProgressCard(
-            balance: _calculateBalance(transactions),
-            budgetAmount: budget.monthlyAmount,
-            spent: _calculateSpent(transactions),
-          ),
+        return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Top gradient section: Balance + Expense
+                GestureDetector(
+                  onLongPress: _showSetBudgetDialog,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF1E1E2E), Color(0xFF2D2D44)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            // Total Balance
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.account_balance_wallet_outlined,
+                                        color: Colors.white54,
+                                        size: 13,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        'Общий баланс',
+                                        style: TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    numberFormat.format(balance),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(width: 1, height: 44, color: Colors.white12),
+                            // Total Expense
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.trending_down,
+                                          color: Colors.white54,
+                                          size: 13,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Text(
+                                          'Расходы месяца',
+                                          style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '-${numberFormat.format(spent)}',
+                                      style: const TextStyle(
+                                        color: Color(0xFFFF8A80),
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (budgetAmount > 0) ...[
+                          const SizedBox(height: 18),
+                          // Progress Bar row
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$progressPercent%',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: LinearProgressIndicator(
+                                    value: progress,
+                                    backgroundColor: Colors.white.withOpacity(0.15),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      progress > 0.9
+                                          ? const Color(0xFFFF5252)
+                                          : progress > 0.7
+                                              ? const Color(0xFFFFD740)
+                                              : AppTheme.primaryColor,
+                                    ),
+                                    minHeight: 8,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                numberFormat.format(budgetAmount),
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Bottom white section: Income / Expense cards + tip
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          // Income Card
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFFBBF7D0),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF22C55E).withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.trending_up,
+                                      color: Color(0xFF22C55E),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Доходы',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          numberFormat.format(income),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF16A34A),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Expense Card
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF1F2),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFFFFCDD2),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444).withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.trending_down,
+                                      color: Color(0xFFEF4444),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Расходы',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          numberFormat.format(spent),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFFDC2626),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Motivational message
+                      if (motivationalMsg.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppTheme.primaryColor.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                progress >= 1.0
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.tips_and_updates_outlined,
+                                color: progress >= 1.0
+                                    ? const Color(0xFFDC2626)
+                                    : AppTheme.primaryColor,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  motivationalMsg,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: progress >= 1.0
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFF92400E),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Set budget button (if no budget)
+                      if (budgetAmount == 0) ...[
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _showSetBudgetDialog,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.primaryColor.withOpacity(0.25),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_circle_outline,
+                                  color: AppTheme.primaryColor,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Установить месячный бюджет',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.primaryColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
         );
       },
     );
@@ -252,24 +777,36 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    bool isLeft = true,
   }) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+        borderRadius: BorderRadius.horizontal(
+          left: isLeft ? const Radius.circular(16) : Radius.zero,
+          right: isLeft ? Radius.zero : const Radius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 18),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: AppTheme.primaryColor, size: 28),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppTheme.primaryColor, size: 24),
+              ),
               const SizedBox(height: 8),
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E1E1E),
                 ),
               ),
             ],
@@ -283,8 +820,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.withOpacity(0.12), width: 1),
       ),
+      padding: const EdgeInsets.all(4),
       child: Row(
         children: [
           _buildPeriodTab('День', 'day'),
@@ -304,11 +843,12 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedPeriod = period;
           });
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             label,
@@ -316,7 +856,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? Colors.white : Colors.grey[700],
+              color: isSelected ? Colors.white : Colors.grey[600],
             ),
           ),
         ),
@@ -345,19 +885,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return transactions
         .where((t) =>
-            t.isCompleted && // Только выполненные транзакции
+            t.isCompleted &&
             (t.date.isAfter(startDate) || t.date.isAtSameMomentAs(startDate)))
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
-  /// Получить планируемые транзакции (отсортированные по дате)
   List<Transaction> _getPlannedTransactions(List<Transaction> transactions) {
     return transactions
         .where((t) => t.isPlanned)
         .toList()
       ..sort((a, b) {
-        // Сначала просроченные, потом по дате
         if (a.isOverdue && !b.isOverdue) return -1;
         if (!a.isOverdue && b.isOverdue) return 1;
         return (a.plannedDate ?? DateTime.now())
@@ -372,6 +910,12 @@ class _HomeScreenState extends State<HomeScreen> {
   double _calculateSpent(List<Transaction> transactions) {
     return transactions
         .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.absoluteAmount);
+  }
+
+  double _calculateIncome(List<Transaction> transactions) {
+    return transactions
+        .where((t) => t.isIncome)
         .fold(0.0, (sum, t) => sum + t.absoluteAmount);
   }
 
@@ -396,28 +940,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ? dateFormat.format(transaction.plannedDate!)
             : 'Не указана';
 
+        Color borderColor = Colors.grey.shade200;
+        if (transaction.isOverdue) borderColor = Colors.red.shade300;
+        if (transaction.isDueSoon) borderColor = Colors.orange.shade300;
+
         return Container(
           width: 200,
           margin: const EdgeInsets.only(right: 12),
           child: Material(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: InkWell(
               onTap: () => _markAsCompleted(transaction),
               onLongPress: () => _editTransaction(transaction),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: transaction.isOverdue
-                        ? Colors.red.shade300
-                        : transaction.isDueSoon
-                            ? Colors.orange.shade300
-                            : Colors.grey.shade300,
-                    width: 2,
-                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderColor, width: 1.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,13 +968,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: categoryColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
+                            color: categoryColor.withOpacity(0.15),
+                            shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.shopping_bag_outlined,
                             color: categoryColor,
-                            size: 20,
+                            size: 18,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -441,8 +982,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text(
                             categoryName,
                             style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -471,24 +1012,24 @@ class _HomeScreenState extends State<HomeScreen> {
                             Icon(
                               transaction.isOverdue
                                   ? Icons.warning_amber_rounded
-                                  : Icons.calendar_today,
-                              size: 14,
+                                  : Icons.calendar_today_outlined,
+                              size: 13,
                               color: transaction.isOverdue
                                   ? Colors.red
                                   : transaction.isDueSoon
                                       ? Colors.orange
-                                      : Colors.grey[600],
+                                      : Colors.grey[500],
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 3),
                             Text(
                               dateText,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 color: transaction.isOverdue
                                     ? Colors.red
                                     : transaction.isDueSoon
                                         ? Colors.orange
-                                        : Colors.grey[600],
+                                        : Colors.grey[500],
                               ),
                             ),
                           ],
@@ -496,7 +1037,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           '${transaction.absoluteAmount.toStringAsFixed(0)} ₽',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -506,11 +1047,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.repeat, size: 12, color: AppTheme.primaryColor),
-                          const SizedBox(width: 4),
+                          const Icon(Icons.repeat, size: 11, color: AppTheme.primaryColor),
+                          const SizedBox(width: 3),
                           Text(
                             transaction.recurrenceRuleDisplay,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 10,
                               color: AppTheme.primaryColor,
                             ),
@@ -532,6 +1073,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Отметить как выполненную?'),
         content: Text(
           'Трата "${transaction.description}" будет перемещена в историю',
@@ -546,7 +1088,6 @@ class _HomeScreenState extends State<HomeScreen> {
               transaction.isPlanned = false;
               transaction.date = DateTime.now();
 
-              // Если повторяющаяся - создать следующую
               if (transaction.isRecurring && transaction.nextRecurrenceDate != null) {
                 final nextTransaction = Transaction(
                   id: const Uuid().v4(),
@@ -573,7 +1114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SnackBar(content: Text('✅ Трата выполнена')),
               );
             },
-            child: Text(
+            child: const Text(
               'Выполнить',
               style: TextStyle(color: AppTheme.primaryColor),
             ),
@@ -599,7 +1140,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return currentDate.add(const Duration(days: 7));
       case 'monthly':
         final nextMonth = currentDate.month == 12 ? 1 : currentDate.month + 1;
-        final nextYear = currentDate.month == 12 ? currentDate.year + 1 : currentDate.year;
+        final nextYear =
+            currentDate.month == 12 ? currentDate.year + 1 : currentDate.year;
         return DateTime(nextYear, nextMonth, currentDate.day);
       case 'yearly':
         return DateTime(currentDate.year + 1, currentDate.month, currentDate.day);
@@ -620,6 +1162,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(existingBudget != null ? 'Изменить бюджет' : 'Установить бюджет'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -653,7 +1196,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: AppTheme.primaryColor),
+                  const Icon(Icons.info_outline, size: 16, color: AppTheme.primaryColor),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -713,7 +1256,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             child: Text(
               existingBudget != null ? 'Обновить' : 'Установить',
-              style: TextStyle(color: AppTheme.primaryColor),
+              style: const TextStyle(color: AppTheme.primaryColor),
             ),
           ),
         ],
