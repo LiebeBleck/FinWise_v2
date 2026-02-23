@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../models/user.dart';
 import '../models/budget.dart';
 import '../services/export_import_service.dart';
+import '../utils/theme_notifier.dart';
 
 /// Экран редактирования профиля в современном стиле
 class EditProfileScreen extends StatefulWidget {
@@ -513,10 +514,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           const SizedBox(height: 12),
 
                           _buildToggleTile(
-                            title: 'Turn Dark Theme',
+                            title: 'Тёмная тема',
                             value: _darkTheme,
                             isDark: isDark,
-                            onChanged: (v) => setState(() => _darkTheme = v),
+                            onChanged: (v) {
+                              setState(() => _darkTheme = v);
+                              // Мгновенное применение темы без перезапуска
+                              themeNotifier.value =
+                                  v ? ThemeMode.dark : ThemeMode.light;
+                            },
                           ),
 
                           const SizedBox(height: 32),

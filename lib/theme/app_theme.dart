@@ -1,5 +1,53 @@
 import 'package:flutter/material.dart';
 
+/// Кастомная анимация переходов: fade + лёгкий слайд снизу вверх
+class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
+  const _FadeSlideTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final fade = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOut,
+    );
+    final slide = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // Уходящий экран слегка затемняется
+    final fadeOut = CurvedAnimation(
+      parent: secondaryAnimation,
+      curve: Curves.easeIn,
+    );
+
+    return FadeTransition(
+      opacity: Tween<double>(begin: 1.0, end: 0.92).animate(fadeOut),
+      child: FadeTransition(
+        opacity: fade,
+        child: SlideTransition(position: slide, child: child),
+      ),
+    );
+  }
+}
+
+const _pageTransitionsTheme = PageTransitionsTheme(
+  builders: {
+    TargetPlatform.android: _FadeSlideTransitionsBuilder(),
+    TargetPlatform.iOS: _FadeSlideTransitionsBuilder(),
+    TargetPlatform.windows: _FadeSlideTransitionsBuilder(),
+  },
+);
+
 class AppTheme {
   // Цвета из дизайн-системы
   static const Color primaryColor = Color(0xFFF97316); // Терракотовый
@@ -14,6 +62,7 @@ class AppTheme {
       brightness: Brightness.light,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: const Color(0xFFFAFAFA),
+      pageTransitionsTheme: _pageTransitionsTheme,
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
         secondary: primaryColor,
@@ -81,6 +130,7 @@ class AppTheme {
       brightness: Brightness.dark,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: const Color(0xFF121212),
+      pageTransitionsTheme: _pageTransitionsTheme,
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
         secondary: primaryColor,
