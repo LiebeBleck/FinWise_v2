@@ -6,7 +6,16 @@ import '../models/category.dart';
 import '../theme/app_theme.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final int? initialCategoryId;
+  final String initialType;
+  final bool autoSearch;
+
+  const SearchScreen({
+    super.key,
+    this.initialCategoryId,
+    this.initialType = 'all',
+    this.autoSearch = false,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -19,6 +28,18 @@ class _SearchScreenState extends State<SearchScreen> {
   String _reportType = 'all'; // 'all', 'income', 'expense'
   List<Transaction> _results = [];
   bool _hasSearched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategoryId = widget.initialCategoryId;
+    _reportType = widget.initialType;
+    if (widget.autoSearch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _performSearch();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -370,6 +391,12 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    String title = 'Поиск';
+    if (widget.initialCategoryId != null && widget.autoSearch) {
+      final cat = Hive.box<Category>('categories').get(widget.initialCategoryId);
+      if (cat != null) title = cat.name;
+    }
+
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.primaryColor,
@@ -391,11 +418,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 color: Colors.white, size: 20),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Поиск',
+              title,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,

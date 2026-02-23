@@ -719,8 +719,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  void _openCategorySearch(int? categoryId) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SearchScreen(
+        initialCategoryId: categoryId,
+        initialType: 'expense',
+        autoSearch: true,
+      ),
+    ));
+  }
+
   Widget _buildPieChartCard(List<Transaction> expenses) {
     final categoryTotals = _calculateCategoryTotals(expenses);
+    final entries = categoryTotals.entries.toList();
     final total =
         categoryTotals.values.fold(0.0, (s, ct) => s + ct.amount);
     final nf =
@@ -742,9 +753,35 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Распределение расходов',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Распределение расходов',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.touch_app_outlined,
+                        size: 12, color: AppTheme.primaryColor),
+                    SizedBox(width: 4),
+                    Text(
+                      'Нажмите на сектор',
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.primaryColor),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -753,6 +790,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               PieChartData(
                 pieTouchData: PieTouchData(
                   touchCallback: (event, response) {
+                    if (event is FlTapUpEvent) {
+                      if (response?.touchedSection != null) {
+                        final idx =
+                            response!.touchedSection!.touchedSectionIndex;
+                        if (idx >= 0 && idx < entries.length) {
+                          _openCategorySearch(entries[idx].value.categoryId);
+                        }
+                      }
+                    }
                     setState(() {
                       if (!event.isInterestedForInteractions ||
                           response == null ||
@@ -774,38 +820,44 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 8),
-          // Legend
-          ...categoryTotals.entries.map((entry) {
+          // Legend — tappable rows
+          ...entries.map((entry) {
             final pct = (entry.value.amount / total * 100);
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: entry.value.color,
-                      shape: BoxShape.circle,
+            return GestureDetector(
+              onTap: () => _openCategorySearch(entry.value.categoryId),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: entry.value.color,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(entry.key,
-                        style: const TextStyle(fontSize: 13)),
-                  ),
-                  Text(
-                    '${pct.toStringAsFixed(0)}%',
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    nf.format(entry.value.amount),
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(entry.key,
+                          style: const TextStyle(fontSize: 13)),
+                    ),
+                    Text(
+                      '${pct.toStringAsFixed(0)}%',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      nf.format(entry.value.amount),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.chevron_right,
+                        size: 16, color: Colors.grey),
+                  ],
+                ),
               ),
             );
           }),
@@ -977,7 +1029,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         } catch (e) {
           color = Colors.grey;
         }
-        totals[name] = CategoryTotal(amount: 0, color: color);
+        totals[name] = CategoryTotal(amount: 0, color: color, categoryId: cat?.id);
       }
       totals[name]!.amount += expense.absoluteAmount;
     }
@@ -991,5 +1043,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 class CategoryTotal {
   double amount;
   final Color color;
-  CategoryTotal({required this.amount, required this.color});
+  final int? categoryId;
+  CategoryTotal({required this.amount, required this.color, this.categoryId});
 }

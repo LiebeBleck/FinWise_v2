@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
 import 'edit_profile_screen.dart';
+import 'categories_screen.dart';
 import 'registration_screen.dart';
 
 /// Современный экран профиля в стиле дизайна
@@ -216,31 +217,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _MenuItem(
                               icon: Icons.person_outline,
                               iconColor: AppTheme.primaryColor,
-                              title: 'Edit Profile',
+                              title: 'Редактировать профиль',
                               onTap: _handleEditProfile,
+                            ),
+                            _MenuItem(
+                              icon: Icons.category_outlined,
+                              iconColor: AppTheme.primaryColor,
+                              title: 'Категории',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CategoriesScreen(),
+                                  ),
+                                );
+                              },
                             ),
                             _MenuItem(
                               icon: Icons.shield_outlined,
                               iconColor: AppTheme.primaryColor,
-                              title: 'Security',
-                              onTap: () => _showComingSoon('Security'),
-                            ),
-                            _MenuItem(
-                              icon: Icons.settings_outlined,
-                              iconColor: AppTheme.primaryColor,
-                              title: 'Setting',
-                              onTap: () => _showComingSoon('Setting'),
+                              title: 'Безопасность',
+                              onTap: () => _showComingSoon('Безопасность'),
                             ),
                             _MenuItem(
                               icon: Icons.help_outline,
                               iconColor: AppTheme.primaryColor,
-                              title: 'Help',
-                              onTap: () => _showComingSoon('Help'),
+                              title: 'Помощь',
+                              onTap: () => _showComingSoon('Помощь'),
                             ),
                             _MenuItem(
                               icon: Icons.logout,
                               iconColor: AppTheme.primaryColor,
-                              title: 'Logout',
+                              title: 'Выйти',
                               onTap: _handleLogout,
                             ),
                           ],

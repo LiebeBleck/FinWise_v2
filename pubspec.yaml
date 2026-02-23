@@ -48,6 +48,10 @@ dependencies:
   # Security
   crypto: ^3.0.6
 
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

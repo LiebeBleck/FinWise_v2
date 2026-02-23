@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../theme/app_theme.dart';
+import '../services/notification_service.dart';
 import 'package:intl/intl.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -687,6 +688,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       box.add(transaction);
     }
+
+    // Проверяем бюджет и отправляем уведомление если нужно
+    NotificationService.checkBudgetAndNotify();
 
     Navigator.of(context).pop();
   }
