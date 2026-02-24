@@ -189,60 +189,14 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
-  /// Создаёт иконку логотипа
   Widget _buildLogo() {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: Stack(
-        children: [
-          // График (столбцы)
-          Positioned(
-            left: 18,
-            bottom: 22,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _buildBar(height: 16),
-                const SizedBox(width: 5),
-                _buildBar(height: 26),
-                const SizedBox(width: 5),
-                _buildBar(height: 38),
-                const SizedBox(width: 5),
-                _buildBar(height: 30),
-              ],
-            ),
-          ),
-          // Стрелка вверх
-          Positioned(
-            right: 12,
-            top: 12,
-            child: Transform.rotate(
-              angle: -0.5,
-              child: const Icon(
-                Icons.trending_up,
-                size: 42,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Создаёт один столбец графика
-  Widget _buildBar({required double height}) {
-    return Container(
-      width: 8,
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(2.5),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: Image.asset(
+        'images/logo.png',
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
       ),
     );
   }

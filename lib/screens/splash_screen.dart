@@ -141,60 +141,14 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  /// Создаёт иконку логотипа (график роста со стрелкой)
   Widget _buildLogo() {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Stack(
-        children: [
-          // График (столбцы)
-          Positioned(
-            left: 20,
-            bottom: 25,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _buildBar(height: 20),
-                const SizedBox(width: 6),
-                _buildBar(height: 30),
-                const SizedBox(width: 6),
-                _buildBar(height: 45),
-                const SizedBox(width: 6),
-                _buildBar(height: 35),
-              ],
-            ),
-          ),
-          // Стрелка вверх
-          Positioned(
-            right: 15,
-            top: 15,
-            child: Transform.rotate(
-              angle: -0.5,
-              child: const Icon(
-                Icons.trending_up,
-                size: 50,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Создаёт один столбец графика
-  Widget _buildBar({required double height}) {
-    return Container(
-      width: 10,
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: Image.asset(
+        'images/logo.png',
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
       ),
     );
   }

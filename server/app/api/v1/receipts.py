@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from loguru import logger
 
+from app.services.ocr_service import ocr_service
+
 router = APIRouter()
 
 
@@ -73,28 +75,44 @@ async def parse_qr_receipt(request: QRReceiptRequest):
 
 class OCRReceiptRequest(BaseModel):
     """Запрос на OCR чека"""
-    image_base64: str  # Base64 encoded image
+    image_base64: str  # Base64 encoded image (JPEG/PNG)
 
 
-@router.post("/ocr")
+class OCRReceiptResponse(BaseModel):
+    """Ответ OCR распознавания чека"""
+    total: Optional[float]
+    date: Optional[str]
+    retailer: Optional[str]
+    items: List[dict]
+    raw_text: str
+
+
+@router.post("/ocr", response_model=OCRReceiptResponse)
 async def ocr_receipt(request: OCRReceiptRequest):
     """
-    Распознать чек через OCR
+    Распознать чек через OCR с предобработкой изображения.
 
-    Процесс:
-    1. Декодирование base64 изображения
-    2. OCR через Google ML Kit (серверная версия) или Tesseract
-    3. Парсинг текста (regex для суммы, даты, товаров)
-    4. Возврат структурированных данных
+    Pipeline предобработки:
+    1. Декодирование base64 → numpy array
+    2. Конвертация в оттенки серого
+    3. Масштабирование (если изображение слишком маленькое)
+    4. Удаление шума (fastNlMeansDenoising)
+    5. Улучшение контраста (CLAHE)
+    6. Бинаризация (адаптивный порог Gaussian)
+    7. Коррекция угла наклона (deskew)
+    8. Tesseract OCR (rus+eng)
+    9. Парсинг: итоговая сумма, дата, магазин, товары
     """
     try:
-        # TODO: Реализовать OCR
-        return {
-            "total": 1250.50,
-            "date": "2024-01-15",
-            "retailer": "Магазин",
-            "items": []
-        }
+        result = ocr_service.recognize(request.image_base64)
+
+        return OCRReceiptResponse(
+            total=result.get("total"),
+            date=result.get("date"),
+            retailer=result.get("retailer"),
+            items=result.get("items", []),
+            raw_text=result.get("raw_text", ""),
+        )
 
     except Exception as e:
         logger.error(f"OCR error: {e}")

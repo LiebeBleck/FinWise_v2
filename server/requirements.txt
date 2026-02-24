@@ -18,6 +18,11 @@ pandas==2.2.3
 numpy==2.2.2
 joblib==1.4.2
 
+# Image Processing & OCR
+opencv-python-headless==4.10.0.84
+Pillow==11.1.0
+pytesseract==0.3.13
+
 # Time Series Forecasting
 prophet==1.1.6
 
