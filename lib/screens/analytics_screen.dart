@@ -571,22 +571,42 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             SizedBox(
               height: 200,
               child: BarChart(
+                swapAnimationDuration: const Duration(milliseconds: 300),
+                swapAnimationCurve: Curves.easeInOut,
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
                   maxY: maxY,
                   barTouchData: BarTouchData(
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
+                      tooltipRoundedRadius: 10,
+                      tooltipPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      getTooltipColor: (group) => const Color(0xFF1E1E2E),
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final label = rodIndex == 0 ? 'Доход' : 'Расход';
+                        final isIncome = rodIndex == 0;
+                        final label = isIncome ? '↑ Доход' : '↓ Расход';
                         final nf = NumberFormat.currency(
                             locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
                         return BarTooltipItem(
-                          '$label\n${nf.format(rod.toY)}',
-                          const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12),
+                          '$label\n',
+                          TextStyle(
+                            color: isIncome
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFFFF8A80),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: nf.format(rod.toY),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
@@ -1072,6 +1092,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           SizedBox(
             height: 220,
             child: PieChart(
+              swapAnimationDuration: const Duration(milliseconds: 350),
+              swapAnimationCurve: Curves.easeInOut,
               PieChartData(
                 pieTouchData: PieTouchData(
                   touchCallback: (event, response) {
