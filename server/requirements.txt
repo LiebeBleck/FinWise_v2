@@ -20,7 +20,7 @@ joblib==1.4.2
 
 # NLP предобработка (лемматизация русского языка)
 pymorphy2==0.9.1
-pymorphy2-dicts-ru==2.4.417.3.46
+pymorphy2-dicts-ru>=2.4
 
 # Image Processing & OCR
 opencv-python-headless==4.10.0.84
