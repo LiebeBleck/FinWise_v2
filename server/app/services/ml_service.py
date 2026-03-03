@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import numpy as np
 from loguru import logger
+from app.services.text_preprocessing_service import preprocess
 
 
 class MLCategorizationService:
@@ -73,11 +74,14 @@ class MLCategorizationService:
 
         try:
             # Объединяем все текстовые данные
-            full_text = description.lower()
+            raw_text = description
             if merchant_name:
-                full_text += " " + merchant_name.lower()
+                raw_text += " " + merchant_name
             if items:
-                full_text += " " + " ".join(items).lower()
+                raw_text += " " + " ".join(items)
+
+            # NLP предобработка (лемматизация + стоп-слова)
+            full_text = preprocess(raw_text)
 
             # Векторизация текста
             text_vector = self.vectorizer.transform([full_text])

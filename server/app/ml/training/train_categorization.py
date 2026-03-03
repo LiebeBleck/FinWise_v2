@@ -12,10 +12,12 @@ from sklearn.metrics import classification_report, accuracy_score
 import sys
 import os
 
-# Add parent directory to path
+# Add parent directories to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loguru import logger
+from services.text_preprocessing_service import preprocess_batch
 
 
 def train_categorization_model():
@@ -39,8 +41,12 @@ def train_categorization_model():
         logger.error("Please create the dataset first using the provided CSV template")
         return False
 
-    # Подготовка данных
-    X = df['description'].str.lower()  # Приводим к нижнему регистру
+    # NLP предобработка (лемматизация + стоп-слова)
+    logger.info("🔤 Preprocessing text (lemmatization + stop words)...")
+    X_raw = df['description'].tolist()
+    X = pd.Series(preprocess_batch(X_raw))
+    logger.info(f"✅ Preprocessing done. Example: '{X_raw[0]}' → '{X.iloc[0]}'")
+
     y = df['category']
 
     # Кодирование меток
@@ -48,19 +54,19 @@ def train_categorization_model():
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
 
-    # Разделение на train/test
-    # Не используем stratify из-за небольшого датасета (88 примеров для 19 категорий)
+    # Разделение на train/test со stratify (датасет 1238 примеров)
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y_encoded, test_size=0.2, random_state=42
+        X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
     )
     logger.info(f"📊 Train size: {len(X_train)}, Test size: {len(X_test)}")
 
     # Векторизация текста (TF-IDF)
     logger.info("🔤 Vectorizing text with TF-IDF...")
     vectorizer = TfidfVectorizer(
-        max_features=500,
-        ngram_range=(1, 2),  # unigrams и bigrams
+        max_features=1000,       # увеличено с 500
+        ngram_range=(1, 2),      # unigrams и bigrams
         min_df=1,
+        sublinear_tf=True,       # сглаживание TF (log)
         analyzer='word'
     )
     X_train_vec = vectorizer.fit_transform(X_train)
