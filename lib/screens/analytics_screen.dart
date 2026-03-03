@@ -20,6 +20,7 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String _selectedPeriod = 'month'; // day, week, month, year
   int _touchedIndex = -1;
+  final Set<int> _selectedCategoryIds = {}; // пусто = все категории
 
   @override
   Widget build(BuildContext context) {
@@ -127,9 +128,52 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
             ),
           ),
-          // Right: search + calendar
+          // Right: filter + search + calendar
           Row(
             children: [
+              GestureDetector(
+                onTap: () => _showCategoryFilterSheet(context),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: _selectedCategoryIds.isNotEmpty
+                            ? Colors.white.withOpacity(0.35)
+                            : Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.filter_list,
+                          color: Colors.white, size: 20),
+                    ),
+                    if (_selectedCategoryIds.isNotEmpty)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${_selectedCategoryIds.length}',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
               GestureDetector(
                 onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(
@@ -719,6 +763,173 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  void _showCategoryFilterSheet(BuildContext context) {
+    final categoriesBox = Hive.box<Category>('categories');
+    final expenseCategories = categoriesBox.values
+        .where((c) => c.type == 'expense' || c.type == 'both')
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    final localSelection = Set<int>.from(_selectedCategoryIds);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final allSelected = localSelection.length == expenseCategories.length;
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Фильтр по категориям',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setSheetState(() {
+                            if (allSelected || localSelection.isEmpty) {
+                              localSelection.clear();
+                            } else {
+                              localSelection.addAll(
+                                  expenseCategories.map((c) => c.id));
+                            }
+                          });
+                        },
+                        child: Text(
+                          localSelection.isEmpty ? 'Выбрать все' : 'Сбросить',
+                          style: const TextStyle(color: AppTheme.primaryColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: expenseCategories.length,
+                    itemBuilder: (ctx, i) {
+                      final cat = expenseCategories[i];
+                      final isSelected = localSelection.contains(cat.id);
+                      Color catColor;
+                      try {
+                        catColor = Color(
+                            int.parse(cat.color.replaceFirst('#', '0xFF')));
+                      } catch (_) {
+                        catColor = Colors.grey;
+                      }
+                      return CheckboxListTile(
+                        value: isSelected,
+                        onChanged: (v) {
+                          setSheetState(() {
+                            if (v == true) {
+                              localSelection.add(cat.id);
+                            } else {
+                              localSelection.remove(cat.id);
+                            }
+                          });
+                        },
+                        activeColor: AppTheme.primaryColor,
+                        secondary: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: catColor.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              cat.name.isNotEmpty
+                                  ? cat.name[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: catColor),
+                            ),
+                          ),
+                        ),
+                        title:
+                            Text(cat.name, style: const TextStyle(fontSize: 14)),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    12,
+                    20,
+                    20 + MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedCategoryIds.clear();
+                          _selectedCategoryIds.addAll(localSelection);
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        localSelection.isEmpty
+                            ? 'Показать все категории'
+                            : 'Применить (${localSelection.length})',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _openCategorySearch(int? categoryId) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => SearchScreen(
@@ -730,7 +941,54 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildPieChartCard(List<Transaction> expenses) {
-    final categoryTotals = _calculateCategoryTotals(expenses);
+    // Apply category filter if active
+    final displayExpenses = _selectedCategoryIds.isEmpty
+        ? expenses
+        : expenses
+            .where((t) => _selectedCategoryIds.contains(t.categoryId))
+            .toList();
+
+    if (displayExpenses.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Text(
+              'Распределение расходов',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Icon(Icons.filter_list,
+                size: 40, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              'Нет расходов по выбранным категориям',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => setState(() => _selectedCategoryIds.clear()),
+              child: const Text('Сбросить фильтр',
+                  style: TextStyle(color: AppTheme.primaryColor)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final categoryTotals = _calculateCategoryTotals(displayExpenses);
     final entries = categoryTotals.entries.toList();
     final total =
         categoryTotals.values.fold(0.0, (s, ct) => s + ct.amount);
@@ -761,26 +1019,53 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.touch_app_outlined,
-                        size: 12, color: AppTheme.primaryColor),
-                    SizedBox(width: 4),
-                    Text(
-                      'Нажмите на сектор',
-                      style: TextStyle(
-                          fontSize: 11, color: AppTheme.primaryColor),
+              if (_selectedCategoryIds.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _selectedCategoryIds.clear()),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.filter_list,
+                            size: 12, color: AppTheme.primaryColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_selectedCategoryIds.length} кат. ✕',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppTheme.primaryColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.touch_app_outlined,
+                          size: 12, color: AppTheme.primaryColor),
+                      SizedBox(width: 4),
+                      Text(
+                        'Нажмите на сектор',
+                        style: TextStyle(
+                            fontSize: 11, color: AppTheme.primaryColor),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
