@@ -4,6 +4,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/transaction.dart';
 import '../models/budget.dart';
+import 'anomaly_detection_service.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -13,11 +14,13 @@ class NotificationService {
   static const int _budgetWarning100Id = 1002;
   static const int _weeklyReportId = 1003;
   static const int _plannedBaseId = 2000; // + transactionId
+  static const int _anomalyId = 3000;
 
   // Channel IDs
   static const String _budgetChannelId = 'finwise_budget';
   static const String _remindersChannelId = 'finwise_reminders';
   static const String _weeklyChannelId = 'finwise_weekly';
+  static const String _anomalyChannelId = 'finwise_anomaly';
 
   /// Инициализация сервиса уведомлений
   static Future<void> init() async {
@@ -217,6 +220,29 @@ class NotificationService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
+
+  // ── Anomaly notification ───────────────────────────────
+
+  /// Push-уведомление об аномальной трате
+  static Future<void> showAnomalyNotification(AnomalyResult result) async {
+    await _plugin.show(
+      _anomalyId,
+      '⚠️ Необычная трата!',
+      'Расход ${_fmt(result.amount)} в "${result.categoryName}" '
+          'значительно выше среднего (${_fmt(result.mean)})',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _anomalyChannelId,
+          'Аномальные траты',
+          channelDescription: 'Предупреждения о необычно крупных расходах',
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
     );
   }
 

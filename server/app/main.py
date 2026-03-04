@@ -53,13 +53,24 @@ async def startup_event():
         logger.error(f"❌ ML model loading failed: {e}")
         logger.info("💡 Fallback categorization will be used")
 
-    # TODO: Инициализация Redis
+    # Инициализация Redis
+    try:
+        from app.services.redis_service import redis_service
+        logger.info("🔴 Connecting to Redis...")
+        await redis_service.init(settings.REDIS_URL)
+    except Exception as e:
+        logger.warning(f"⚠️  Redis init failed: {e}")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Очистка при остановке"""
     logger.info("👋 Shutting down FinWise API")
+    try:
+        from app.services.redis_service import redis_service
+        await redis_service.close()
+    except Exception:
+        pass
 
 
 @app.get("/")

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../utils/responsive_helper.dart';
 import '../models/user.dart';
 import '../models/budget.dart';
 import '../services/export_import_service.dart';
@@ -288,7 +289,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final userId = _currentUser?.email?.hashCode.abs().toString().padLeft(8, '0').substring(0, 8) ?? '00000000';
 
     return Scaffold(
-      body: Container(
+      body: ResponsiveHelper.constrain(Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -572,7 +573,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 

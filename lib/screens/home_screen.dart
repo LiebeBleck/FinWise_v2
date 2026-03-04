@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import '../models/transaction.dart';
 import '../models/budget.dart';
 import '../models/user.dart';
 import '../theme/app_theme.dart';
 import '../widgets/transaction_list_item.dart';
+import '../services/tutorial_service.dart';
+import '../utils/responsive_helper.dart';
 import 'add_transaction_screen.dart';
 import 'scan_receipt_screen.dart';
 import 'notifications_screen.dart';
@@ -20,6 +23,74 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _selectedPeriod = 'month'; // day, week, month
+
+  // GlobalKeys для spotlight туториала
+  final _balanceCardKey = GlobalKey();
+  final _addButtonKey = GlobalKey();
+  final _scanButtonKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorialIfNeeded());
+  }
+
+  Future<void> _showTutorialIfNeeded() async {
+    final should = await TutorialService.shouldShowHomeTutorial();
+    if (!should || !mounted) return;
+    await TutorialService.markHomeTutorialShown();
+    _startTutorial();
+  }
+
+  void _startTutorial() {
+    TutorialCoachMark(
+      targets: [
+        TargetFocus(
+          identify: 'balance_card',
+          keyTarget: _balanceCardKey,
+          contents: [
+            TargetContent(
+              align: ContentAlign.bottom,
+              child: const _TutorialContent(
+                title: 'Ваш баланс',
+                body: 'Здесь отображается общий баланс, расходы и доходы за выбранный период.',
+              ),
+            ),
+          ],
+        ),
+        TargetFocus(
+          identify: 'add_button',
+          keyTarget: _addButtonKey,
+          contents: [
+            TargetContent(
+              align: ContentAlign.bottom,
+              child: const _TutorialContent(
+                title: 'Добавить транзакцию',
+                body: 'Нажмите здесь, чтобы вручную добавить доход или расход.',
+              ),
+            ),
+          ],
+        ),
+        TargetFocus(
+          identify: 'scan_button',
+          keyTarget: _scanButtonKey,
+          contents: [
+            TargetContent(
+              align: ContentAlign.bottom,
+              child: const _TutorialContent(
+                title: 'Сканировать чек',
+                body: 'Сканируйте QR-код чека — товары добавятся автоматически с категориями.',
+              ),
+            ),
+          ],
+        ),
+      ],
+      colorShadow: AppTheme.primaryColor,
+      textSkip: 'Пропустить',
+      paddingFocus: 8,
+      opacityShadow: 0.85,
+    ).show(context: context);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final spent = _calculateSpent(filteredTransactions);
           final income = _calculateIncome(filteredTransactions);
 
-          return CustomScrollView(
+          return ResponsiveHelper.constrain(CustomScrollView(
             slivers: [
               // Custom Header with gradient
               SliverToBoxAdapter(
@@ -47,7 +118,10 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: _buildAccountBalanceCard(balance, spent, income),
+                  child: KeyedSubtree(
+                    key: _balanceCardKey,
+                    child: _buildAccountBalanceCard(balance, spent, income),
+                  ),
                 ),
               ),
 
@@ -75,11 +149,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         children: [
                           Expanded(
-                            child: _buildQuickActionButton(
-                              icon: Icons.add_circle_outline,
-                              label: 'Добавить',
-                              onTap: () => _navigateToAddTransaction(false),
-                              isLeft: true,
+                            child: KeyedSubtree(
+                              key: _addButtonKey,
+                              child: _buildQuickActionButton(
+                                icon: Icons.add_circle_outline,
+                                label: 'Добавить',
+                                onTap: () => _navigateToAddTransaction(false),
+                                isLeft: true,
+                              ),
                             ),
                           ),
                           VerticalDivider(
@@ -90,18 +167,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             endIndent: 12,
                           ),
                           Expanded(
-                            child: _buildQuickActionButton(
-                              icon: Icons.qr_code_scanner,
-                              label: 'Сканировать',
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const ScanReceiptScreen(),
-                                  ),
-                                );
-                              },
-                              isLeft: false,
+                            child: KeyedSubtree(
+                              key: _scanButtonKey,
+                              child: _buildQuickActionButton(
+                                icon: Icons.qr_code_scanner,
+                                label: 'Сканировать',
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const ScanReceiptScreen(),
+                                    ),
+                                  );
+                                },
+                                isLeft: false,
+                              ),
                             ),
                           ),
                         ],
@@ -266,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: SizedBox(height: 100),
               ),
             ],
-          );
+          ));
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -1268,6 +1348,43 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AddTransactionScreen(isIncome: isIncome),
+      ),
+    );
+  }
+
+  /// Публичный метод для повторного показа туториала (вызывается из ProfileScreen)
+  void showTutorial() => _startTutorial();
+}
+
+// Вспомогательный виджет для текста туториала
+class _TutorialContent extends StatelessWidget {
+  final String title;
+  final String body;
+
+  const _TutorialContent({required this.title, required this.body});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+        ],
       ),
     );
   }

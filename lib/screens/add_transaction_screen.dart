@@ -5,6 +5,7 @@ import '../models/transaction.dart';
 import '../models/category.dart';
 import '../theme/app_theme.dart';
 import '../services/notification_service.dart';
+import '../services/anomaly_detection_service.dart';
 import 'package:intl/intl.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -692,7 +693,62 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     // Проверяем бюджет и отправляем уведомление если нужно
     NotificationService.checkBudgetAndNotify();
 
+    // Проверка аномалии для расходов (не для планируемых)
+    if (!_isIncome && !_isPlanned) {
+      final catBox = Hive.box<Category>('categories');
+      final category = catBox.values.firstWhere(
+        (c) => c.id == _selectedCategoryId,
+        orElse: () => Category(
+          id: _selectedCategoryId!,
+          name: 'Прочее',
+          color: '#9E9E9E',
+          type: 'both',
+        ),
+      );
+
+      final anomaly = AnomalyDetectionService.check(
+        amount: amount,
+        categoryId: _selectedCategoryId!,
+        categoryName: category.name,
+      );
+
+      if (anomaly != null && anomaly.isAnomaly && mounted) {
+        NotificationService.showAnomalyNotification(anomaly);
+        _showAnomalyDialog(anomaly);
+        return;
+      }
+    }
+
     Navigator.of(context).pop();
+  }
+
+  void _showAnomalyDialog(AnomalyResult anomaly) {
+    final fmt = (double v) => '${v.toStringAsFixed(0)} ₽';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Text('⚠️ ', style: TextStyle(fontSize: 20)),
+            Text('Необычная трата'),
+          ],
+        ),
+        content: Text(
+          'Расход ${fmt(anomaly.amount)} в категории "${anomaly.categoryName}" '
+          'значительно выше вашего обычного (в среднем ${fmt(anomaly.mean)}).\n\n'
+          'Транзакция сохранена.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Понятно'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Рассчитать следующую дату повторения

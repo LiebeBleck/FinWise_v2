@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'services/hive_service.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/offline_ml_service.dart';
 import 'utils/migrate_dates.dart';
 import 'utils/theme_notifier.dart';
 import 'theme/app_theme.dart';
@@ -22,6 +23,9 @@ void main() async {
 
   // Initialize notifications
   await NotificationService.init();
+
+  // Load offline ML model (graceful — если файлы пустые, просто не активен)
+  await OfflineMLService().load();
 
   // Load saved theme before showing UI
   final user = await AuthService.getCurrentUser();

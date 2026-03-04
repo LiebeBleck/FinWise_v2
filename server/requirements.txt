@@ -8,9 +8,8 @@ sqlalchemy==2.0.36
 asyncpg==0.30.0
 alembic==1.14.0
 
-# Redis
+# Redis (redis>=5 включает async поддержку через redis.asyncio)
 redis==5.2.1
-aioredis==2.0.1
 
 # ML & Data Science
 scikit-learn==1.6.1

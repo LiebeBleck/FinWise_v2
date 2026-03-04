@@ -9,6 +9,7 @@ import '../utils/date_utils.dart';
 import 'package:intl/intl.dart';
 import 'search_screen.dart';
 import 'calendar_screen.dart';
+import '../utils/responsive_helper.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -52,7 +53,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           final incomes =
               filteredTransactions.where((t) => t.isIncome).toList();
 
-          return CustomScrollView(
+          return ResponsiveHelper.constrain(CustomScrollView(
             slivers: [
               // Header
               SliverToBoxAdapter(
@@ -129,7 +130,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
-          );
+          ));
         },
       ),
     );

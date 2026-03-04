@@ -1,6 +1,14 @@
-/// Сервис для категоризации товаров из чека
+import 'offline_ml_service.dart';
+
+/// Сервис для категоризации товаров из чека.
+///
+/// Приоритет:
+///   1. Pure Dart Offline ML (OfflineMLService) — если загружен (~98% точность)
+///   2. Локальный словарь ключевых слов — fallback (~75% точность)
 class ReceiptCategorizationService {
-  // Локальный словарь ключевых слов для категоризации
+  final _mlService = OfflineMLService();
+
+  // Локальный словарь ключевых слов (fallback)
   static final Map<String, String> _keywordMap = {
     // Продукты
     'хлеб': 'Продукты',
@@ -83,16 +91,16 @@ class ReceiptCategorizationService {
     'парк': 'Развлечения',
 
     // Одежда
-    'футболка': 'Одежда',
-    'рубашка': 'Одежда',
-    'брюки': 'Одежда',
-    'джинсы': 'Одежда',
-    'куртка': 'Одежда',
-    'пальто': 'Одежда',
-    'обувь': 'Одежда',
-    'кроссовки': 'Одежда',
-    'туфли': 'Одежда',
-    'ботинки': 'Одежда',
+    'футболка': 'Одежда и обувь',
+    'рубашка': 'Одежда и обувь',
+    'брюки': 'Одежда и обувь',
+    'джинсы': 'Одежда и обувь',
+    'куртка': 'Одежда и обувь',
+    'пальто': 'Одежда и обувь',
+    'обувь': 'Одежда и обувь',
+    'кроссовки': 'Одежда и обувь',
+    'туфли': 'Одежда и обувь',
+    'ботинки': 'Одежда и обувь',
 
     // Косметика
     'шампунь': 'Косметика',
@@ -114,29 +122,32 @@ class ReceiptCategorizationService {
     'батарейка': 'Дом и быт',
   };
 
-  /// Категоризировать товар по названию
+  /// Категоризировать товар по названию.
+  ///
+  /// Возвращает Map с полями 'category' (String) и 'confidence' (double 0..1).
   Future<Map<String, dynamic>> categorizeItem(String itemName) async {
-    final normalized = itemName.toLowerCase();
-
-    // Поиск по ключевым словам
-    for (var entry in _keywordMap.entries) {
-      if (normalized.contains(entry.key)) {
-        return {
-          'category': entry.value,
-          'confidence': 0.75, // Средняя уверенность для словарного метода
-        };
+    // 1. Попытка через Pure Dart ML
+    if (_mlService.isActive) {
+      final result = _mlService.predictWithConfidence(itemName);
+      if (result != null) {
+        return {'category': result.category, 'confidence': result.confidence};
       }
     }
 
-    // Fallback: категория по умолчанию
-    return {
-      'category': 'Прочее',
-      'confidence': 0.3, // Низкая уверенность
-    };
+    // 2. Словарный fallback
+    final normalized = itemName.toLowerCase();
+    for (final entry in _keywordMap.entries) {
+      if (normalized.contains(entry.key)) {
+        return {'category': entry.value, 'confidence': 0.75};
+      }
+    }
+
+    return {'category': 'Прочее', 'confidence': 0.3};
   }
 
-  /// Пакетная категоризация товаров
-  Future<List<Map<String, dynamic>>> categorizeItems(List<String> itemNames) async {
+  /// Пакетная категоризация товаров.
+  Future<List<Map<String, dynamic>>> categorizeItems(
+      List<String> itemNames) async {
     return Future.wait(itemNames.map((name) => categorizeItem(name)));
   }
 }

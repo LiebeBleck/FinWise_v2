@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../services/tutorial_service.dart';
+import '../utils/responsive_helper.dart';
 import '../models/user.dart';
 import 'edit_profile_screen.dart';
 import 'categories_screen.dart';
@@ -91,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userId = _currentUser?.email?.hashCode.abs().toString().padLeft(8, '0').substring(0, 8) ?? '00000000';
 
     return Scaffold(
-      body: Container(
+      body: ResponsiveHelper.constrain(Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -234,6 +236,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               },
                             ),
                             _MenuItem(
+                              icon: Icons.school_outlined,
+                              iconColor: AppTheme.primaryColor,
+                              title: 'Показать обучение',
+                              onTap: () async {
+                                await TutorialService.resetTutorials();
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Откройте "Главная" для просмотра обучения'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                            _MenuItem(
                               icon: Icons.shield_outlined,
                               iconColor: AppTheme.primaryColor,
                               title: 'Безопасность',
@@ -261,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 

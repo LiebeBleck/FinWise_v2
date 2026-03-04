@@ -13,6 +13,7 @@ from app.schemas.ml_request import (
     RecommendationsResponse,
 )
 from app.services.ml_service import ml_service
+from app.services.redis_service import redis_service
 
 router = APIRouter()
 
@@ -20,34 +21,43 @@ router = APIRouter()
 @router.post("/categorize", response_model=CategorizationResponse)
 async def categorize_transaction(request: CategorizationRequest):
     """
-    Категоризация транзакции с помощью ML модели
-
-    Алгоритм:
-    1. Векторизация текста описания (TF-IDF)
-    2. Извлечение признаков (сумма, время, день недели)
-    3. Предсказание через Random Forest
-    4. Возврат категории с confidence score
+    Категоризация транзакции с помощью ML модели.
+    Результат кэшируется в Redis (TTL 1 час).
     """
+    # Попытка получить из кэша
+    cache_key = redis_service.make_key(
+        request.description or "",
+        request.amount,
+        request.merchant_name,
+    )
+    cached = await redis_service.get(cache_key)
+    if cached is not None:
+        cached["processing_time_ms"] = 0
+        return CategorizationResponse(**cached)
+
     start_time = time.time()
 
     try:
-        # Категоризация через ML сервис
         category, confidence, alternatives = ml_service.categorize(
             description=request.description,
             amount=request.amount,
             merchant_name=request.merchant_name,
-            items=request.items
+            items=request.items,
         )
 
-        # Время обработки
         processing_time = int((time.time() - start_time) * 1000)
 
-        return CategorizationResponse(
+        result = CategorizationResponse(
             category=category,
             confidence=confidence,
             alternatives=alternatives,
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
+
+        # Кэшируем результат (TTL 1 час)
+        await redis_service.set(cache_key, result.model_dump(), ttl=3600)
+
+        return result
 
     except Exception as e:
         logger.error(f"Categorization error: {e}")
