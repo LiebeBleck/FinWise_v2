@@ -22,6 +22,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _touchedIndex = -1;
   final Set<int> _selectedCategoryIds = {}; // пусто = все категории
 
+  DateTime _selectedMonth =
+      DateTime(DateTime.now().year, DateTime.now().month);
+  bool _compareMode = false;
+  late DateTime _compareMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _compareMonth = DateTime(
+      now.month > 1 ? now.year : now.year - 1,
+      now.month > 1 ? now.month - 1 : 12,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,24 +75,44 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               ),
 
-              // Income & Expenses chart
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child:
-                      _buildIncomeExpenseChart(filteredTransactions, expenses, incomes),
+              // Month navigator (only for 'month' period)
+              if (_selectedPeriod == 'month')
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: _buildMonthNavigator(),
+                  ),
                 ),
-              ),
 
-              // Summary bottom cards
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: _buildBottomSummaryCards(filteredTransactions),
+              // Compare mode: show comparison view
+              if (_selectedPeriod == 'month' && _compareMode)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildComparisonView(allTransactions),
+                  ),
                 ),
-              ),
 
-              // Pie chart
+              // Normal mode: Income & Expenses chart
+              if (!(_selectedPeriod == 'month' && _compareMode))
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildIncomeExpenseChart(
+                        filteredTransactions, expenses, incomes),
+                  ),
+                ),
+
+              // Normal mode: Summary bottom cards
+              if (!(_selectedPeriod == 'month' && _compareMode))
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildBottomSummaryCards(filteredTransactions),
+                  ),
+                ),
+
+              // Pie chart (primary period always)
               if (expenses.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -86,8 +121,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                 ),
 
-              // Empty state if no data
-              if (filteredTransactions.isEmpty)
+              // Empty state if no data (not in compare mode)
+              if (filteredTransactions.isEmpty && !_compareMode)
                 SliverFillRemaining(
                   child: _buildEmptyState(),
                 ),
@@ -218,9 +253,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         final budget = budgetBox.get('current');
         final budgetAmount = budget?.monthlyAmount ?? 0;
 
+        final targetMonth =
+            _selectedPeriod == 'month' ? _selectedMonth : DateTime.now();
         final monthTransactions = allTransactions.where((t) {
-          final now = DateTime.now();
-          return t.date.year == now.year && t.date.month == now.month;
+          return t.date.year == targetMonth.year &&
+              t.date.month == targetMonth.month;
         }).toList();
 
         final balance =
@@ -423,6 +460,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               onTap: () => setState(() {
                 _selectedPeriod = p.$2;
                 _touchedIndex = -1;
+                if (p.$2 != 'month') _compareMode = false;
               }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -1206,6 +1244,585 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  // ── Month Navigator ────────────────────────────────────
+
+  static const _monthNames = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+  ];
+
+  Widget _buildMonthNavigator() {
+    final now = DateTime.now();
+    final isCurrentMonth = _selectedMonth.year == now.year &&
+        _selectedMonth.month == now.month;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            // Compare toggle
+            GestureDetector(
+              onTap: () => setState(() => _compareMode = !_compareMode),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _compareMode
+                      ? AppTheme.primaryColor.withOpacity(0.12)
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _compareMode
+                        ? AppTheme.primaryColor
+                        : Colors.grey.shade300,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.compare_arrows,
+                        size: 14,
+                        color: _compareMode
+                            ? AppTheme.primaryColor
+                            : Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Сравнение',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _compareMode
+                            ? AppTheme.primaryColor
+                            : Colors.grey[600],
+                        fontWeight: _compareMode
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Spacer(),
+            // Primary month navigation
+            _monthNavButton(
+              icon: Icons.chevron_left,
+              onTap: () => setState(() {
+                _selectedMonth = DateTime(
+                  _selectedMonth.month > 1
+                      ? _selectedMonth.year
+                      : _selectedMonth.year - 1,
+                  _selectedMonth.month > 1 ? _selectedMonth.month - 1 : 12,
+                );
+              }),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '${_monthNames[_selectedMonth.month - 1]} ${_selectedMonth.year}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _monthNavButton(
+              icon: Icons.chevron_right,
+              onTap: isCurrentMonth
+                  ? null
+                  : () => setState(() {
+                        _selectedMonth = DateTime(
+                          _selectedMonth.month < 12
+                              ? _selectedMonth.year
+                              : _selectedMonth.year + 1,
+                          _selectedMonth.month < 12
+                              ? _selectedMonth.month + 1
+                              : 1,
+                        );
+                      }),
+            ),
+          ],
+        ),
+        // Compare month navigator
+        if (_compareMode) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(Icons.compare_arrows, size: 13, color: Colors.grey[400]),
+              const SizedBox(width: 5),
+              Text('vs',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+              const SizedBox(width: 5),
+              _monthNavButton(
+                icon: Icons.chevron_left,
+                onTap: () => setState(() {
+                  _compareMonth = DateTime(
+                    _compareMonth.month > 1
+                        ? _compareMonth.year
+                        : _compareMonth.year - 1,
+                    _compareMonth.month > 1 ? _compareMonth.month - 1 : 12,
+                  );
+                }),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${_monthNames[_compareMonth.month - 1]} ${_compareMonth.year}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[500],
+                ),
+              ),
+              const SizedBox(width: 6),
+              _monthNavButton(
+                icon: Icons.chevron_right,
+                onTap: () => setState(() {
+                  _compareMonth = DateTime(
+                    _compareMonth.month < 12
+                        ? _compareMonth.year
+                        : _compareMonth.year + 1,
+                    _compareMonth.month < 12 ? _compareMonth.month + 1 : 1,
+                  );
+                }),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _monthNavButton({required IconData icon, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: onTap == null ? Colors.grey.shade50 : Colors.grey.shade100,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: onTap == null ? Colors.grey.shade300 : Colors.grey[600],
+        ),
+      ),
+    );
+  }
+
+  // ── Comparison View ────────────────────────────────────
+
+  Widget _buildComparisonView(List<Transaction> allTransactions) {
+    final primaryTx = allTransactions
+        .where((t) =>
+            t.date.year == _selectedMonth.year &&
+            t.date.month == _selectedMonth.month)
+        .toList();
+    final compareTx = allTransactions
+        .where((t) =>
+            t.date.year == _compareMonth.year &&
+            t.date.month == _compareMonth.month)
+        .toList();
+
+    final pIncome = primaryTx
+        .where((t) => t.isIncome)
+        .fold(0.0, (s, t) => s + t.absoluteAmount);
+    final pExpense = primaryTx
+        .where((t) => t.isExpense)
+        .fold(0.0, (s, t) => s + t.absoluteAmount);
+    final pBalance = pIncome - pExpense;
+
+    final cIncome = compareTx
+        .where((t) => t.isIncome)
+        .fold(0.0, (s, t) => s + t.absoluteAmount);
+    final cExpense = compareTx
+        .where((t) => t.isExpense)
+        .fold(0.0, (s, t) => s + t.absoluteAmount);
+    final cBalance = cIncome - cExpense;
+
+    final nf =
+        NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
+
+    String pctChange(double current, double previous) {
+      if (previous == 0) return current > 0 ? '+∞%' : '—';
+      final pct = (current - previous) / previous * 100;
+      return pct >= 0
+          ? '+${pct.toStringAsFixed(0)}%'
+          : '${pct.toStringAsFixed(0)}%';
+    }
+
+    Color pctColor(double current, double previous,
+        {bool invertGood = false}) {
+      if (previous == 0) return Colors.grey;
+      final isUp = current > previous;
+      if (invertGood) {
+        return isUp ? const Color(0xFFEF4444) : const Color(0xFF22C55E);
+      }
+      return isUp ? const Color(0xFF22C55E) : const Color(0xFFEF4444);
+    }
+
+    // Bar chart
+    final maxVal = [pIncome, pExpense, cIncome, cExpense]
+        .reduce((a, b) => a > b ? a : b);
+    final maxY = maxVal == 0 ? 1000.0 : _calculateMaxYFromValues(maxVal);
+    final gridInterval = _getGridInterval(maxY);
+
+    final primaryLabel =
+        '${_monthNames[_selectedMonth.month - 1].substring(0, 3)} ${_selectedMonth.year}';
+    final compareLabel =
+        '${_monthNames[_compareMonth.month - 1].substring(0, 3)} ${_compareMonth.year}';
+
+    final barGroups = [
+      BarChartGroupData(
+        x: 0,
+        barsSpace: 6,
+        barRods: [
+          BarChartRodData(
+            toY: pIncome,
+            color: const Color(0xFF22C55E),
+            width: 28,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(6)),
+          ),
+          BarChartRodData(
+            toY: cIncome,
+            color: const Color(0xFF22C55E).withOpacity(0.35),
+            width: 28,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(6)),
+          ),
+        ],
+      ),
+      BarChartGroupData(
+        x: 1,
+        barsSpace: 6,
+        barRods: [
+          BarChartRodData(
+            toY: pExpense,
+            color: AppTheme.primaryColor,
+            width: 28,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(6)),
+          ),
+          BarChartRodData(
+            toY: cExpense,
+            color: AppTheme.primaryColor.withOpacity(0.35),
+            width: 28,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(6)),
+          ),
+        ],
+      ),
+    ];
+
+    return Column(
+      children: [
+        // Summary comparison card
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Month name headers
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_monthNames[_selectedMonth.month - 1]} ${_selectedMonth.year}',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('vs',
+                        style:
+                            TextStyle(fontSize: 11, color: Colors.grey)),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${_monthNames[_compareMonth.month - 1]} ${_compareMonth.year}',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[500]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              _buildCompareRow(
+                label: 'Доходы',
+                icon: Icons.trending_up,
+                iconColor: const Color(0xFF22C55E),
+                primaryValue: nf.format(pIncome),
+                compareValue: nf.format(cIncome),
+                pctText: pctChange(pIncome, cIncome),
+                pctColor: pctColor(pIncome, cIncome),
+              ),
+              const SizedBox(height: 10),
+              _buildCompareRow(
+                label: 'Расходы',
+                icon: Icons.trending_down,
+                iconColor: const Color(0xFFEF4444),
+                primaryValue: nf.format(pExpense),
+                compareValue: nf.format(cExpense),
+                pctText: pctChange(pExpense, cExpense),
+                pctColor: pctColor(pExpense, cExpense, invertGood: true),
+              ),
+              const SizedBox(height: 10),
+              _buildCompareRow(
+                label: 'Баланс',
+                icon: Icons.account_balance_wallet_outlined,
+                iconColor: AppTheme.primaryColor,
+                primaryValue:
+                    (pBalance >= 0 ? '+' : '') + nf.format(pBalance),
+                compareValue:
+                    (cBalance >= 0 ? '+' : '') + nf.format(cBalance),
+                pctText: pctChange(pBalance, cBalance),
+                pctColor: pctColor(pBalance, cBalance),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Comparison bar chart
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text('Доходы и Расходы',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                  ),
+                  // Legend
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                            color: Color(0xFF22C55E),
+                            shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(primaryLabel,
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.grey)),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFF22C55E).withOpacity(0.4),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(compareLabel,
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.grey)),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 200,
+                child: BarChart(
+                  swapAnimationDuration:
+                      const Duration(milliseconds: 300),
+                  swapAnimationCurve: Curves.easeInOut,
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: maxY,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        tooltipRoundedRadius: 10,
+                        getTooltipColor: (group) =>
+                            const Color(0xFF1E1E2E),
+                        getTooltipItem:
+                            (group, groupIndex, rod, rodIndex) {
+                          final isIncome = group.x == 0;
+                          final isPrimary = rodIndex == 0;
+                          final monthLabel =
+                              isPrimary ? primaryLabel : compareLabel;
+                          final nfLocal = NumberFormat.currency(
+                              locale: 'ru_RU',
+                              symbol: '₽',
+                              decimalDigits: 0);
+                          return BarTooltipItem(
+                            '$monthLabel\n',
+                            TextStyle(
+                              color: isIncome
+                                  ? const Color(0xFF22C55E)
+                                  : const Color(0xFFFF8A80),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: nfLocal.format(rod.toY),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            const labels = ['Доходы', 'Расходы'];
+                            final idx = value.toInt();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                idx >= 0 && idx < labels.length
+                                    ? labels[idx]
+                                    : '',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.grey),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 44,
+                          interval: gridInterval,
+                          getTitlesWidget: (value, meta) => Text(
+                            _formatShortAmount(value),
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: gridInterval,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: Colors.grey.shade100,
+                        strokeWidth: 1,
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    barGroups: barGroups,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompareRow({
+    required String label,
+    required IconData icon,
+    required Color iconColor,
+    required String primaryValue,
+    required String compareValue,
+    required String pctText,
+    required Color pctColor,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: iconColor),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(label,
+              style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(primaryValue,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.bold)),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: pctColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                pctText,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: pctColor,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Container(width: 1, height: 30, color: Colors.grey.shade100),
+        const SizedBox(width: 12),
+        Text(compareValue,
+            style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+      ],
+    );
+  }
+
   // ── Data helpers ──────────────────────────────────────
 
   List<Transaction> _filterByPeriod(List<Transaction> transactions) {
@@ -1220,7 +1837,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           final weekEnd = today.endOfWeek;
           return !t.date.isBefore(weekStart) && !t.date.isAfter(weekEnd);
         case 'month':
-          return t.date.year == today.year && t.date.month == today.month;
+          return t.date.year == _selectedMonth.year &&
+              t.date.month == _selectedMonth.month;
         case 'year':
           return t.date.year == today.year;
         default:
