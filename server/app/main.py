@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.config import settings
-from app.api.v1 import ml, receipts, analytics
+from app.api.v1 import ml, receipts, analytics, auth, data_sync
 
 # Инициализация FastAPI
 app = FastAPI(
@@ -94,6 +94,8 @@ async def health_check():
 app.include_router(ml.router, prefix="/api/v1/ml", tags=["ML"])
 app.include_router(receipts.router, prefix="/api/v1/receipts", tags=["Receipts"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(data_sync.router, prefix="/api/v1/sync", tags=["Sync"])
 
 
 # Обработка ошибок

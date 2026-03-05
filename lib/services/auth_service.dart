@@ -4,6 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../models/user.dart';
 import '../models/budget.dart';
+import 'api_service.dart';
+import 'data_sync_service.dart';
 
 /// Сервис аутентификации с безопасным хранением паролей
 class AuthService {
@@ -47,10 +49,40 @@ class AuthService {
       );
       await budgetBox.put('current', budget);
 
+      // Backend registration (fire-and-forget — работает и без интернета)
+      _registerOnBackend(email: email, username: nickname, passwordHash: passwordHash, currency: currency);
+
       return true;
     } catch (e) {
       print('Registration error: $e');
       return false;
+    }
+  }
+
+  /// Регистрация на backend в фоне
+  static void _registerOnBackend({
+    required String email,
+    required String username,
+    required String passwordHash,
+    required String currency,
+  }) async {
+    try {
+      await ApiService.register(
+        email: email,
+        username: username,
+        passwordHash: passwordHash,
+        currency: currency,
+      );
+      // После регистрации — сразу push всех локальных данных
+      DataSyncService.pushAllBackground();
+    } catch (_) {
+      // Нет интернета или аккаунт уже существует — пробуем войти
+      try {
+        await ApiService.login(email: email, passwordHash: passwordHash);
+        DataSyncService.pushAllBackground();
+      } catch (_) {
+        // Backend недоступен — продолжаем работать локально
+      }
     }
   }
 
@@ -67,10 +99,35 @@ class AuthService {
       }
 
       // Проверяем пароль
-      return await verifyPassword(password);
+      final ok = await verifyPassword(password);
+      if (ok) {
+        // Обновляем токен на backend в фоне
+        _loginOnBackend(email: email, passwordHash: _hashPassword(password));
+      }
+      return ok;
     } catch (e) {
       print('Login error: $e');
       return false;
+    }
+  }
+
+  /// Вход на backend в фоне + pull данных если токена ещё нет
+  static void _loginOnBackend({
+    required String email,
+    required String passwordHash,
+  }) async {
+    try {
+      final hadToken = await ApiService.hasToken();
+      await ApiService.login(email: email, passwordHash: passwordHash);
+      if (!hadToken) {
+        // Первый вход с сервером — тянем данные (восстановление на новом устройстве)
+        await DataSyncService.pullAll();
+      } else {
+        // Регулярный вход — push локальных данных
+        DataSyncService.pushAllBackground();
+      }
+    } catch (_) {
+      // Backend недоступен — работаем локально
     }
   }
 
@@ -152,12 +209,17 @@ class AuthService {
   static Future<void> logout() async {
     try {
       await _storage.delete(key: _passwordKey);
+      await ApiService.clearToken();
       final usersBox = await Hive.openBox<User>('users');
       await usersBox.clear();
     } catch (e) {
       print('Logout error: $e');
     }
   }
+
+  /// Получить SHA-256 хэш пароля (для использования как credential к backend)
+  static Future<String?> getPasswordHash() =>
+      _storage.read(key: _passwordKey);
 
   /// Хэширование пароля с помощью SHA-256
   static String _hashPassword(String password) {
