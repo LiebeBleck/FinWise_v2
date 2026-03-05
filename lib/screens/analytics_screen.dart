@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -23,6 +24,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String _selectedPeriod = 'month'; // day, week, month, year
   int _touchedIndex = -1;
   final Set<int> _selectedCategoryIds = {}; // пусто = все категории
+  double _barChartScale = 1.0; // Масштаб графика (0.5 – 3.0)
 
   DateTime _selectedMonth =
       DateTime(DateTime.now().year, DateTime.now().month);
@@ -475,6 +477,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               onTap: () => setState(() {
                 _selectedPeriod = p.$2;
                 _touchedIndex = -1;
+                _barChartScale = 1.0; // сброс масштаба при смене периода
                 if (p.$2 != 'month') _compareMode = false;
               }),
               child: AnimatedContainer(
@@ -507,6 +510,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     List<Transaction> expenses,
     List<Transaction> incomes,
   ) {
+    // Динамический масштаб полос
+    final double barWidth = (10.0 * _barChartScale).clamp(4.0, 40.0);
+    final double barsSpace = (3.0 * _barChartScale).clamp(1.5, 8.0);
+
     final incomeGrouped = _groupByPeriod(incomes);
     final expenseGrouped = _groupByPeriod(expenses);
 
@@ -521,19 +528,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       return BarChartGroupData(
         x: key,
         groupVertically: false,
-        barsSpace: 3,
+        barsSpace: barsSpace,
         barRods: [
           BarChartRodData(
             toY: incomeGrouped[key] ?? 0,
             color: const Color(0xFF22C55E),
-            width: 10,
+            width: barWidth,
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(4)),
           ),
           BarChartRodData(
             toY: expenseGrouped[key] ?? 0,
             color: AppTheme.primaryColor,
-            width: 10,
+            width: barWidth,
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(4)),
           ),
@@ -576,6 +583,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+              // Zoom controls
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildZoomButton(Icons.remove, () {
+                    setState(() => _barChartScale =
+                        (_barChartScale - 0.25).clamp(0.5, 3.0));
+                  }, enabled: _barChartScale > 0.5),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      '${(_barChartScale * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
+                  ),
+                  _buildZoomButton(Icons.add, () {
+                    setState(() => _barChartScale =
+                        (_barChartScale + 0.25).clamp(0.5, 3.0));
+                  }, enabled: _barChartScale < 3.0),
+                ],
               ),
               Row(
                 children: [
@@ -621,98 +649,137 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
             )
           else
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                swapAnimationDuration: const Duration(milliseconds: 300),
-                swapAnimationCurve: Curves.easeInOut,
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxY,
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      tooltipRoundedRadius: 10,
-                      tooltipPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      getTooltipColor: (group) => const Color(0xFF1E1E2E),
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final isIncome = rodIndex == 0;
-                        final label = isIncome ? '↑ Доход' : '↓ Расход';
-                        final nf = NumberFormat.currency(
-                            locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
-                        return BarTooltipItem(
-                          '$label\n',
-                          TextStyle(
-                            color: isIncome
-                                ? const Color(0xFF22C55E)
-                                : const Color(0xFFFF8A80),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: nf.format(rod.toY),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Width per group: 2 bars + barsSpace + inter-group margin
+                final double groupWidth = barWidth * 2 + barsSpace + 14.0;
+                final double neededW = barGroups.length * groupWidth + 44;
+                final bool scrollable = neededW > constraints.maxWidth;
+
+                final chart = BarChart(
+                  swapAnimationDuration: const Duration(milliseconds: 300),
+                  swapAnimationCurve: Curves.easeInOut,
+                  BarChartData(
+                    alignment: scrollable
+                        ? BarChartAlignment.start
+                        : BarChartAlignment.spaceAround,
+                    maxY: maxY,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        tooltipRoundedRadius: 10,
+                        tooltipPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        getTooltipColor: (group) => const Color(0xFF1E1E2E),
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          final isIncome = rodIndex == 0;
+                          final label = isIncome ? '↑ Доход' : '↓ Расход';
+                          final nf = NumberFormat.currency(
+                              locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
+                          return BarTooltipItem(
+                            '$label\n',
+                            TextStyle(
+                              color: isIncome
+                                  ? const Color(0xFF22C55E)
+                                  : const Color(0xFFFF8A80),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
                             ),
-                          ],
-                        );
-                      },
+                            children: [
+                              TextSpan(
+                                text: nf.format(rod.toY),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(
-                              _getBottomTitle(value.toInt()),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                _getBottomTitle(value.toInt()),
+                                style: const TextStyle(
+                                    fontSize: 10, color: Colors.grey),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 44,
+                          interval: gridInterval,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              _formatShortAmount(value),
                               style: const TextStyle(
                                   fontSize: 10, color: Colors.grey),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: gridInterval,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: Colors.grey.shade100,
+                        strokeWidth: 1,
                       ),
                     ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 44,
-                        interval: gridInterval,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            _formatShortAmount(value),
-                            style: const TextStyle(
-                                fontSize: 10, color: Colors.grey),
-                          );
-                        },
+                    borderData: FlBorderData(show: false),
+                    barGroups: barGroups,
+                  ),
+                );
+
+                if (scrollable) {
+                  return Column(
+                    children: [
+                      SizedBox(
+                        height: 200,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: neededW.clamp(constraints.maxWidth, 2000.0),
+                            child: chart,
+                          ),
+                        ),
                       ),
-                    ),
-                    topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: gridInterval,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: Colors.grey.shade100,
-                      strokeWidth: 1,
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: barGroups,
-                ),
-              ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.swipe, size: 12, color: Colors.grey[400]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Листайте для просмотра',
+                            style:
+                                TextStyle(fontSize: 10, color: Colors.grey[400]),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                }
+                return SizedBox(height: 200, child: chart);
+              },
             ),
         ],
       ),
@@ -1222,6 +1289,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             );
           }),
         ],
+      ),
+    );
+  }
+
+  Widget _buildZoomButton(IconData icon, VoidCallback onTap,
+      {required bool enabled}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: enabled ? Colors.grey.shade100 : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            icon,
+            size: 14,
+            color: enabled ? Colors.grey[700] : Colors.grey[300],
+          ),
+        ),
       ),
     );
   }
@@ -1916,18 +2006,44 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return value.toStringAsFixed(0);
   }
 
+  /// «Красивое» округление вверх для максимума оси Y.
+  /// Всегда даёт приятное число (1/2/5 × 10^n) с 20% запасом.
   double _calculateMaxYFromValues(double maxValue) {
-    final targetMax = maxValue * 1.2;
-    if (targetMax <= 1000) return (targetMax / 100).ceil() * 100.0;
-    if (targetMax <= 10000) return (targetMax / 1000).ceil() * 1000.0;
-    return (targetMax / 5000).ceil() * 5000.0;
+    if (maxValue <= 0) return 1000;
+    return _niceMax(maxValue * 1.2);
   }
 
+  /// Всегда 4–5 горизонтальных линий сетки независимо от диапазона.
   double _getGridInterval(double maxY) {
-    if (maxY <= 1000) return 200;
-    if (maxY <= 5000) return 1000;
-    if (maxY <= 10000) return 2000;
-    return 5000;
+    if (maxY <= 0) return 200;
+    return _niceNumber(maxY / 5, round: true);
+  }
+
+  /// Округляет значение до ближайшего «красивого» числа (1/2/5 × 10^n).
+  double _niceNumber(double value, {required bool round}) {
+    if (value <= 0) return 1;
+    final exp = (math.log(value) / math.ln10).floor();
+    final fraction = value / math.pow(10, exp);
+    double niceFraction;
+    if (round) {
+      if (fraction < 1.5) niceFraction = 1;
+      else if (fraction < 3.5) niceFraction = 2;
+      else if (fraction < 7.5) niceFraction = 5;
+      else niceFraction = 10;
+    } else {
+      if (fraction <= 1) niceFraction = 1;
+      else if (fraction <= 2) niceFraction = 2;
+      else if (fraction <= 5) niceFraction = 5;
+      else niceFraction = 10;
+    }
+    return niceFraction * math.pow(10, exp).toDouble();
+  }
+
+  /// Верхняя граница оси: ближайшее «красивое» число ≥ target.
+  double _niceMax(double target) {
+    if (target <= 0) return 1000;
+    final interval = _niceNumber(target / 5, round: false);
+    return (target / interval).ceil() * interval;
   }
 
   List<PieChartSectionData> _buildPieChartSections(
