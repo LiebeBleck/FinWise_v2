@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../models/budget.dart';
+import '../models/savings_goal.dart';
+import 'hive_service.dart';
 
 /// Сервис для экспорта и импорта данных в JSON
 class ExportImportService {
@@ -15,7 +17,7 @@ class ExportImportService {
       // Получаем данные из Hive
       final transactionsBox = await Hive.openBox<Transaction>('transactions');
       final categoriesBox = await Hive.openBox<Category>('categories');
-      final budgetsBox = await Hive.openBox<Budget>('budgets');
+      final budgetBox = Hive.box<Budget>('budget');
 
       // Формируем JSON структуру
       final data = {
@@ -45,10 +47,25 @@ class ExportImportService {
                   'type': cat.type,
                 })
             .toList(),
-        'budgets': budgetsBox.values
-            .map((budget) => {
-                  'monthlyAmount': budget.monthlyAmount,
-                  'periodStart': budget.periodStart.toIso8601String(),
+        'budgets': [
+          if (budgetBox.get('current') != null)
+            {
+              'monthlyAmount': budgetBox.get('current')!.monthlyAmount,
+              'periodStart': budgetBox.get('current')!.periodStart.toIso8601String(),
+              'periodType': budgetBox.get('current')!.periodType,
+              'categoryBudgets': budgetBox.get('current')!.categoryBudgets,
+            }
+        ],
+        'savings_goals': HiveService.savingsGoalsBox.values
+            .map((g) => {
+                  'id': g.id,
+                  'name': g.name,
+                  'targetAmount': g.targetAmount,
+                  'savedAmount': g.savedAmount,
+                  'createdAt': g.createdAt.toIso8601String(),
+                  'deadline': g.deadline?.toIso8601String(),
+                  'icon': g.icon,
+                  'color': g.color,
                 })
             .toList(),
       };
@@ -70,7 +87,8 @@ class ExportImportService {
         filePath: file.path,
         transactionsCount: transactionsBox.length,
         categoriesCount: categoriesBox.length,
-        budgetsCount: budgetsBox.length,
+        budgetsCount: budgetBox.get('current') != null ? 1 : 0,
+        savingsGoalsCount: HiveService.savingsGoalsBox.length,
       );
     } catch (e) {
       return ExportResult(
@@ -112,7 +130,7 @@ class ExportImportService {
       // Открываем Hive boxes
       final transactionsBox = await Hive.openBox<Transaction>('transactions');
       final categoriesBox = await Hive.openBox<Category>('categories');
-      final budgetsBox = await Hive.openBox<Budget>('budgets');
+      final budgetBox = Hive.box<Budget>('budget');
 
       int transactionsImported = 0;
       int categoriesImported = 0;
@@ -172,18 +190,44 @@ class ExportImportService {
         }
       }
 
-      // Импортируем бюджеты
+      // Импортируем бюджет
       if (data.containsKey('budgets')) {
         final budgets = data['budgets'] as List;
-        for (var budgetData in budgets) {
+        if (budgets.isNotEmpty) {
+          final budgetData = budgets.first as Map<String, dynamic>;
           final budget = Budget(
             monthlyAmount: budgetData['monthlyAmount'].toDouble(),
             periodStart: DateTime.parse(budgetData['periodStart']),
+            periodType: budgetData['periodType'] as String?,
           );
+          await budgetBox.put('current', budget);
+          budgetsImported = 1;
+        }
+      }
 
-          // Добавляем бюджет (Hive автоматически добавляет)
-          await budgetsBox.add(budget);
-          budgetsImported++;
+      // Импортируем цели сбережений
+      int savingsGoalsImported = 0;
+      if (data.containsKey('savings_goals')) {
+        final goalsData = data['savings_goals'] as List;
+        final goalsBox = HiveService.savingsGoalsBox;
+        for (final gd in goalsData) {
+          final id = gd['id'] as String;
+          if (!goalsBox.containsKey(id)) {
+            final goal = SavingsGoal(
+              id: id,
+              name: gd['name'] as String,
+              targetAmount: (gd['targetAmount'] as num).toDouble(),
+              savedAmount: (gd['savedAmount'] as num).toDouble(),
+              createdAt: DateTime.parse(gd['createdAt'] as String),
+              deadline: gd['deadline'] != null
+                  ? DateTime.parse(gd['deadline'] as String)
+                  : null,
+              icon: gd['icon'] as String?,
+              color: gd['color'] as String?,
+            );
+            await goalsBox.put(id, goal);
+            savingsGoalsImported++;
+          }
         }
       }
 
@@ -192,6 +236,7 @@ class ExportImportService {
         transactionsCount: transactionsImported,
         categoriesCount: categoriesImported,
         budgetsCount: budgetsImported,
+        savingsGoalsCount: savingsGoalsImported,
       );
     } catch (e) {
       return ImportResult(
@@ -209,6 +254,7 @@ class ExportResult {
   final int transactionsCount;
   final int categoriesCount;
   final int budgetsCount;
+  final int savingsGoalsCount;
   final String? error;
 
   ExportResult({
@@ -217,6 +263,7 @@ class ExportResult {
     this.transactionsCount = 0,
     this.categoriesCount = 0,
     this.budgetsCount = 0,
+    this.savingsGoalsCount = 0,
     this.error,
   });
 }
@@ -227,6 +274,7 @@ class ImportResult {
   final int transactionsCount;
   final int categoriesCount;
   final int budgetsCount;
+  final int savingsGoalsCount;
   final String? error;
 
   ImportResult({
@@ -234,6 +282,7 @@ class ImportResult {
     this.transactionsCount = 0,
     this.categoriesCount = 0,
     this.budgetsCount = 0,
+    this.savingsGoalsCount = 0,
     this.error,
   });
 }

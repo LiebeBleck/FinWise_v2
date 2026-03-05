@@ -7,6 +7,7 @@ import '../models/budget.dart';
 import '../theme/app_theme.dart';
 import '../utils/date_utils.dart';
 import 'package:intl/intl.dart';
+import '../services/budget_service.dart';
 import 'search_screen.dart';
 import 'calendar_screen.dart';
 import '../utils/responsive_helper.dart';
@@ -253,6 +254,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       builder: (context, Box<Budget> budgetBox, _) {
         final budget = budgetBox.get('current');
         final budgetAmount = budget?.monthlyAmount ?? 0;
+        final periodLabel = budget != null
+            ? BudgetService.periodLabel(budget.effectivePeriodType)
+            : 'Месячный';
 
         final targetMonth =
             _selectedPeriod == 'month' ? _selectedMonth : DateTime.now();
@@ -263,9 +267,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
         final balance =
             monthTransactions.fold(0.0, (s, t) => s + t.amount);
-        final spent = monthTransactions
-            .where((t) => t.isExpense)
-            .fold(0.0, (s, t) => s + t.absoluteAmount);
+        final spent = budget != null
+            ? BudgetService.getExpensesForPeriod(budget)
+            : monthTransactions
+                .where((t) => t.isExpense)
+                .fold(0.0, (s, t) => s + t.absoluteAmount);
 
         final progress =
             budgetAmount > 0 ? (spent / budgetAmount).clamp(0.0, 1.0) : 0.0;
@@ -369,6 +375,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
+                    Text(
+                      '$periodLabel бюджет',
+                      style: const TextStyle(
+                          color: Colors.white60, fontSize: 11),
+                    ),
+                    const Spacer(),
+                    Text(
+                      nf.format(budgetAmount),
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 11),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 7, vertical: 2),
@@ -401,14 +423,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ),
                           minHeight: 8,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      nf.format(budgetAmount),
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
                       ),
                     ),
                   ],

@@ -692,6 +692,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     // Проверяем бюджет и отправляем уведомление если нужно
     NotificationService.checkBudgetAndNotify();
+    NotificationService.checkCategoryBudgetsAndNotify();
 
     // Проверка аномалии для расходов (не для планируемых)
     if (!_isIncome && !_isPlanned) {

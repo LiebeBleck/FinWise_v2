@@ -5,6 +5,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '../models/transaction.dart';
 import '../models/budget.dart';
 import 'anomaly_detection_service.dart';
+import 'budget_service.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -15,6 +16,7 @@ class NotificationService {
   static const int _weeklyReportId = 1003;
   static const int _plannedBaseId = 2000; // + transactionId
   static const int _anomalyId = 3000;
+  static const int _categoryBudgetBaseId = 4000; // + categoryId
 
   // Channel IDs
   static const String _budgetChannelId = 'finwise_budget';
@@ -85,6 +87,51 @@ class NotificationService {
             'Использовано ${(ratio * 100).toStringAsFixed(0)}% месячного бюджета. '
             'Осталось: ${_fmt(budget.monthlyAmount - monthlyExpenses)}',
       );
+    }
+  }
+
+  /// Проверяет бюджеты по категориям и показывает уведомления при превышении
+  static Future<void> checkCategoryBudgetsAndNotify() async {
+    final budget = BudgetService.getCurrentBudget();
+    if (budget == null) return;
+
+    final statuses = BudgetService.getCategoryBudgetStatuses(budget);
+    for (final status in statuses) {
+      if (status.ratio >= 1.0) {
+        await _plugin.show(
+          _categoryBudgetBaseId + status.categoryId,
+          '🚨 Бюджет категории исчерпан!',
+          '${status.categoryName}: потрачено ${_fmt(status.spent)} из ${_fmt(status.limit)}',
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              _budgetChannelId,
+              'Бюджет',
+              channelDescription: 'Предупреждения о превышении бюджета',
+              importance: Importance.high,
+              priority: Priority.high,
+              icon: '@mipmap/ic_launcher',
+            ),
+            iOS: const DarwinNotificationDetails(),
+          ),
+        );
+      } else if (status.ratio >= 0.9) {
+        await _plugin.show(
+          _categoryBudgetBaseId + status.categoryId,
+          '⚠️ Бюджет категории почти исчерпан',
+          '${status.categoryName}: использовано ${(status.ratio * 100).toStringAsFixed(0)}% лимита',
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              _budgetChannelId,
+              'Бюджет',
+              channelDescription: 'Предупреждения о превышении бюджета',
+              importance: Importance.high,
+              priority: Priority.high,
+              icon: '@mipmap/ic_launcher',
+            ),
+            iOS: const DarwinNotificationDetails(),
+          ),
+        );
+      }
     }
   }
 

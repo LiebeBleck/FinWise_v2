@@ -10,9 +10,11 @@ import '../theme/app_theme.dart';
 import '../widgets/transaction_list_item.dart';
 import '../services/tutorial_service.dart';
 import '../utils/responsive_helper.dart';
+import '../services/budget_service.dart';
 import 'add_transaction_screen.dart';
 import 'scan_receipt_screen.dart';
 import 'notifications_screen.dart';
+import 'budget_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -459,8 +461,15 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, Box<Budget> budgetBox, _) {
         final budget = budgetBox.get('current');
         final budgetAmount = budget?.monthlyAmount ?? 0;
-        final progress = budgetAmount > 0 ? (spent / budgetAmount).clamp(0.0, 1.0) : 0.0;
+        // Use BudgetService for period-accurate expense calculation
+        final budgetSpent = budget != null
+            ? BudgetService.getExpensesForPeriod(budget)
+            : spent;
+        final progress = budgetAmount > 0 ? (budgetSpent / budgetAmount).clamp(0.0, 1.0) : 0.0;
         final progressPercent = (progress * 100).toStringAsFixed(0);
+        final periodLabel = budget != null
+            ? BudgetService.periodLabel(budget.effectivePeriodType)
+            : 'Месячный';
 
         final numberFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
 
@@ -473,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen> {
           } else if (progress < 1.0) {
             motivationalMsg = '$progressPercent% расходов бюджета. Бюджет почти исчерпан!';
           } else {
-            motivationalMsg = 'Бюджет превышен на ${numberFormat.format(spent - budgetAmount)}!';
+            motivationalMsg = 'Бюджет превышен на ${numberFormat.format(budgetSpent - budgetAmount)}!';
           }
         }
 
@@ -493,7 +502,10 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 // Top gradient section: Balance + Expense
                 GestureDetector(
-                  onLongPress: _showSetBudgetDialog,
+                  onLongPress: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BudgetScreen()),
+                  ),
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: const BoxDecoration(
@@ -588,6 +600,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         if (budgetAmount > 0) ...[
                           const SizedBox(height: 18),
+                          // Period label
+                          Row(
+                            children: [
+                              Text(
+                                '$periodLabel бюджет',
+                                style: const TextStyle(
+                                    color: Colors.white60, fontSize: 11),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const BudgetScreen()),
+                                ),
+                                child: const Text('Управление →',
+                                    style: TextStyle(
+                                        color: Colors.white38, fontSize: 11)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
                           // Progress Bar row
                           Row(
                             children: [
@@ -809,7 +843,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (budgetAmount == 0) ...[
                         const SizedBox(height: 12),
                         GestureDetector(
-                          onTap: _showSetBudgetDialog,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const BudgetScreen()),
+                          ),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 12),
@@ -831,7 +869,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 SizedBox(width: 8),
                                 Text(
-                                  'Установить месячный бюджет',
+                                  'Управление бюджетом',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: AppTheme.primaryColor,
@@ -1230,119 +1268,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showSetBudgetDialog() {
-    final budgetController = TextEditingController();
-    final budgetBox = Hive.box<Budget>('budget');
-    final existingBudget = budgetBox.get('current');
-
-    if (existingBudget != null) {
-      budgetController.text = existingBudget.monthlyAmount.toStringAsFixed(0);
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(existingBudget != null ? 'Изменить бюджет' : 'Установить бюджет'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Укажите ежемесячный бюджет на расходы',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: budgetController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Сумма бюджета',
-                hintText: '0',
-                prefixText: '₽ ',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.grey[100],
-              ),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 16, color: AppTheme.primaryColor),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Бюджет обновляется каждый месяц',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (existingBudget != null)
-            TextButton(
-              onPressed: () {
-                budgetBox.delete('current');
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Бюджет удален')),
-                );
-              },
-              child: const Text('Удалить', style: TextStyle(color: Colors.red)),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              final amount = double.tryParse(budgetController.text);
-              if (amount == null || amount <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Введите корректную сумму')),
-                );
-                return;
-              }
-
-              final now = DateTime.now();
-              final budget = Budget(
-                monthlyAmount: amount,
-                periodStart: DateTime(now.year, now.month, 1),
-              );
-
-              budgetBox.put('current', budget);
-              Navigator.of(context).pop();
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    existingBudget != null
-                        ? 'Бюджет обновлен: ${amount.toStringAsFixed(0)} ₽'
-                        : 'Бюджет установлен: ${amount.toStringAsFixed(0)} ₽',
-                  ),
-                ),
-              );
-            },
-            child: Text(
-              existingBudget != null ? 'Обновить' : 'Установить',
-              style: const TextStyle(color: AppTheme.primaryColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _navigateToAddTransaction(bool isIncome) {
     Navigator.of(context).push(

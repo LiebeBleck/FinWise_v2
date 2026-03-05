@@ -40,13 +40,12 @@ class AuthService {
       await usersBox.add(user);
 
       // Создаём начальный бюджет
-      final budgetsBox = await Hive.openBox<Budget>('budgets');
-      await budgetsBox.clear();
+      final budgetBox = Hive.box<Budget>('budget');
       final budget = Budget(
         monthlyAmount: monthlyBudget,
         periodStart: DateTime.now(),
       );
-      await budgetsBox.add(budget);
+      await budgetBox.put('current', budget);
 
       return true;
     } catch (e) {

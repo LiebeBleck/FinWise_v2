@@ -42,7 +42,7 @@ class RecommendationsService {
     // Открываем Hive boxes
     final transactionsBox = await Hive.openBox<Transaction>('transactions');
     final categoriesBox = await Hive.openBox<Category>('categories');
-    final budgetsBox = await Hive.openBox<Budget>('budgets');
+    final budgetBox = Hive.box<Budget>('budget');
 
     // Получаем выполненные транзакции за последние 30 дней
     final now = DateTime.now();
@@ -56,8 +56,8 @@ class RecommendationsService {
         .toList();
 
     // 1. Проверка превышения бюджета
-    if (budgetsBox.isNotEmpty) {
-      final budget = budgetsBox.values.first;
+    final budget = budgetBox.get('current');
+    if (budget != null) {
       final expenses = recentTransactions
           .where((tx) => tx.amount < 0)
           .fold<double>(0, (sum, tx) => sum + tx.amount.abs());

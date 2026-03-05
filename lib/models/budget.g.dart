@@ -19,17 +19,23 @@ class BudgetAdapter extends TypeAdapter<Budget> {
     return Budget(
       monthlyAmount: fields[0] as double,
       periodStart: fields[1] as DateTime,
+      periodType: fields[2] as String?,
+      categoryBudgets: (fields[3] as Map?)?.cast<dynamic, dynamic>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Budget obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.monthlyAmount)
       ..writeByte(1)
-      ..write(obj.periodStart);
+      ..write(obj.periodStart)
+      ..writeByte(2)
+      ..write(obj.periodType)
+      ..writeByte(3)
+      ..write(obj.categoryBudgets);
   }
 
   @override

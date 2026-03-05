@@ -49,10 +49,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _loadUserData() async {
     _currentUser = await AuthService.getCurrentUser();
-    final budgetsBox = await Hive.openBox<Budget>('budgets');
-    if (budgetsBox.isNotEmpty) {
-      _currentBudget = budgetsBox.values.first;
-    }
+    final budgetBox = Hive.box<Budget>('budget');
+    _currentBudget = budgetBox.get('current');
 
     if (_currentUser != null) {
       _usernameController.text = _currentUser!.username;
@@ -82,11 +80,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       // Обновляем бюджет
-      if (_currentBudget != null) {
-        final newAmount = double.tryParse(_budgetController.text);
-        if (newAmount != null && newAmount > 0) {
+      final newAmount = double.tryParse(_budgetController.text);
+      if (newAmount != null && newAmount > 0) {
+        final budgetBox = Hive.box<Budget>('budget');
+        if (_currentBudget != null) {
           _currentBudget!.monthlyAmount = newAmount;
           await _currentBudget!.save();
+        } else {
+          await budgetBox.put('current', Budget(
+            monthlyAmount: newAmount,
+            periodStart: DateTime.now(),
+          ));
         }
       }
 

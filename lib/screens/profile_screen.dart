@@ -6,6 +6,8 @@ import '../utils/responsive_helper.dart';
 import '../models/user.dart';
 import 'edit_profile_screen.dart';
 import 'categories_screen.dart';
+import 'budget_screen.dart';
+import 'savings_goals_screen.dart';
 import 'registration_screen.dart';
 
 /// Современный экран профиля в стиле дизайна
@@ -231,6 +233,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const CategoriesScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _MenuItem(
+                              icon: Icons.account_balance_wallet_outlined,
+                              iconColor: AppTheme.primaryColor,
+                              title: 'Бюджеты',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const BudgetScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _MenuItem(
+                              icon: Icons.savings_outlined,
+                              iconColor: AppTheme.primaryColor,
+                              title: 'Цели сбережений',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const SavingsGoalsScreen(),
                                   ),
                                 );
                               },

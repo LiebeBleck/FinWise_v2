@@ -4,6 +4,7 @@ import '../models/transaction.dart';
 import '../models/user.dart';
 import '../models/budget.dart';
 import '../models/sync_queue_item.dart';
+import '../models/savings_goal.dart';
 
 class HiveService {
   static const String userBoxName = 'user';
@@ -12,6 +13,7 @@ class HiveService {
   static const String budgetBoxName = 'budget';
   static const String keywordsBoxName = 'category_keywords';
   static const String syncQueueBoxName = 'sync_queue';
+  static const String savingsGoalsBoxName = 'savings_goals';
 
   /// Инициализация Hive
   static Future<void> init() async {
@@ -24,6 +26,7 @@ class HiveService {
     Hive.registerAdapter(UserAdapter());
     Hive.registerAdapter(BudgetAdapter());
     Hive.registerAdapter(SyncQueueItemAdapter());
+    Hive.registerAdapter(SavingsGoalAdapter());
 
     // Открытие boxes
     await Hive.openBox<User>(userBoxName);
@@ -32,9 +35,35 @@ class HiveService {
     await Hive.openBox<Budget>(budgetBoxName);
     await Hive.openBox<Map>(keywordsBoxName);
     await Hive.openBox<SyncQueueItem>(syncQueueBoxName);
+    await Hive.openBox<SavingsGoal>(savingsGoalsBoxName);
+
+    // Миграция: перенос данных из старого box 'budgets' в 'budget'
+    await _migrateBudgetBox();
 
     // Инициализация категорий по умолчанию
     await _initDefaultCategories();
+  }
+
+  /// Миграция бюджета из старого box 'budgets' → 'budget'
+  static Future<void> _migrateBudgetBox() async {
+    try {
+      if (!Hive.isBoxOpen('budgets')) {
+        await Hive.openBox<Budget>('budgets');
+      }
+      final oldBox = Hive.box<Budget>('budgets');
+      final newBox = budgetBox;
+
+      if (oldBox.isNotEmpty && newBox.get('current') == null) {
+        final oldBudget = oldBox.values.first;
+        await newBox.put('current', Budget(
+          monthlyAmount: oldBudget.monthlyAmount,
+          periodStart: oldBudget.periodStart,
+        ));
+      }
+      await oldBox.clear();
+    } catch (_) {
+      // Если старого box нет — миграция не нужна
+    }
   }
 
   /// Инициализация предустановленных категорий
@@ -69,6 +98,9 @@ class HiveService {
   /// Получить box очереди синхронизации
   static Box<SyncQueueItem> get syncQueueBox => Hive.box<SyncQueueItem>(syncQueueBoxName);
 
+  /// Получить box целей сбережений
+  static Box<SavingsGoal> get savingsGoalsBox => Hive.box<SavingsGoal>(savingsGoalsBoxName);
+
   /// Получить пользователя (или создать нового)
   static Future<User> getOrCreateUser() async {
     final box = userBox;
@@ -97,6 +129,7 @@ class HiveService {
     await budgetBox.clear();
     await keywordsBox.clear();
     await syncQueueBox.clear();
+    await savingsGoalsBox.clear();
 
     // Переинициализация категорий
     await _initDefaultCategories();
