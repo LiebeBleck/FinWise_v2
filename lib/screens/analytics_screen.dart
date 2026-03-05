@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../utils/date_utils.dart';
 import 'package:intl/intl.dart';
 import '../services/budget_service.dart';
+import '../services/forecast_service.dart';
 import 'search_screen.dart';
 import 'calendar_screen.dart';
 import '../utils/responsive_helper.dart';
@@ -122,6 +123,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: _buildPieChartCard(expenses),
+                  ),
+                ),
+
+              // Forecast card (only for 'month' tab, not in compare mode)
+              if (_selectedPeriod == 'month' && !_compareMode)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildForecastCard(),
                   ),
                 ),
 
@@ -1288,6 +1298,274 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+
+  // ── Forecast card ──────────────────────────────────────
+
+  static const _forecastMonthNames = [
+    'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+    'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+  ];
+
+  Widget _buildForecastCard() {
+    final forecast = ForecastService.forecastNextMonth();
+
+    if (forecast == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            const Text('🔮', style: TextStyle(fontSize: 24)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Прогноз расходов',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Добавьте данные за 2+ месяца для прогноза',
+                    style:
+                        TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final nf = NumberFormat.currency(
+        locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
+    final monthName =
+        _forecastMonthNames[forecast.targetMonth.month - 1];
+    final monthLabel =
+        '${monthName[0].toUpperCase()}${monthName.substring(1)} '
+        '${forecast.targetMonth.year}';
+    final categoriesBox = Hive.box<Category>('categories');
+
+    // Max predicted for bar scaling
+    final maxPredicted = forecast.topCategories.isEmpty
+        ? 1.0
+        : forecast.topCategories.first.predicted;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E1E2E), Color(0xFF2D2D44)],
+              ),
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16)),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('🔮', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Прогноз на $monthLabel',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'ML',
+                        style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Predicted total
+                Text(
+                  nf.format(forecast.predictedTotal),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'от ${nf.format(forecast.lowerBound)} '
+                  'до ${nf.format(forecast.upperBound)}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.55),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Category breakdown
+          if (forecast.topCategories.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Топ категорий',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87),
+                  ),
+                  const SizedBox(height: 12),
+                  ...forecast.topCategories.map((cf) {
+                    final cat = categoriesBox.get(cf.categoryId);
+                    final name = cat?.name ?? 'Без категории';
+                    Color catColor;
+                    try {
+                      catColor = cat != null
+                          ? Color(
+                              int.parse(cat.color.replaceFirst('#', '0xFF')))
+                          : Colors.grey;
+                    } catch (_) {
+                      catColor = Colors.grey;
+                    }
+                    final ratio =
+                        maxPredicted > 0 ? cf.predicted / maxPredicted : 0.0;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          // Letter avatar
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: catColor.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                name.isNotEmpty
+                                    ? name[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: catColor),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          // Name + bar
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(name,
+                                        style: const TextStyle(
+                                            fontSize: 13)),
+                                    Text(
+                                      nf.format(cf.predicted),
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: ratio.clamp(0.0, 1.0),
+                                    backgroundColor:
+                                        catColor.withOpacity(0.12),
+                                    valueColor:
+                                        AlwaysStoppedAnimation(catColor),
+                                    minHeight: 5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+
+          // Footer
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 13, color: Colors.grey.shade400),
+                const SizedBox(width: 4),
+                Text(
+                  'На основе ${forecast.monthsOfData} мес. данных · '
+                  'линейная регрессия',
+                  style: TextStyle(
+                      fontSize: 11, color: Colors.grey.shade400),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
