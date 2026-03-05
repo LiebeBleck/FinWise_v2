@@ -53,10 +53,19 @@ async def push_data(
     user = await _get_user(authorization, db)
 
     # ── Transactions ──────────────────────────────────────
+    # Collect valid category IDs (server may not have client's default categories)
+    all_cat_ids = {t.category_id for t in body.transactions}
+    valid_cat_ids: set[int] = set()
+    for cat_id in all_cat_ids:
+        result = await db.execute(select(Category.id).where(Category.id == cat_id))
+        if result.scalar_one_or_none() is not None:
+            valid_cat_ids.add(cat_id)
+
     await db.execute(delete(Transaction).where(Transaction.user_id == user.id))
     for t in body.transactions:
         meta = {
             "local_id": str(t.local_id),
+            "category_id": t.category_id,   # preserve original for pull
             "is_planned": t.is_planned,
             "planned_date": t.planned_date.isoformat() if t.planned_date else None,
             "is_recurring": t.is_recurring,
@@ -67,7 +76,8 @@ async def push_data(
         }
         db.add(Transaction(
             user_id=user.id,
-            category_id=t.category_id,
+            # Use None if category not in server DB (stored in meta for pull)
+            category_id=t.category_id if t.category_id in valid_cat_ids else None,
             amount=t.amount,
             description=t.description,
             date=t.date,
@@ -136,10 +146,12 @@ async def pull_data(
         def _parse_dt(s):
             return datetime.fromisoformat(s) if s else None
 
+        # Restore original category_id from meta if available
+        original_cat_id = meta.get("category_id") or t.category_id or 19
         sync_txs.append(SyncTransaction(
             local_id=str(meta.get("local_id", t.id)),
             amount=t.amount,
-            category_id=t.category_id or 19,  # fallback to "Прочее"
+            category_id=int(original_cat_id),
             description=t.description or "",
             date=t.date,
             is_planned=meta.get("is_planned", False),
