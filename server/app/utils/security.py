@@ -1,21 +1,20 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from app.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Token lives 90 days — user re-enters credentials only on reinstall
 _EXPIRE_DAYS = 90
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return _bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    salt = _bcrypt.gensalt(rounds=12)
+    return _bcrypt.hashpw(password.encode(), salt).decode()
 
 
 def create_access_token(user_id: str) -> str:
