@@ -321,13 +321,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               title: 'Показать обучение',
                               onTap: () async {
                                 await TutorialService.resetTutorials();
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Откройте "Главная" для просмотра обучения'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
+                                TutorialService.switchToHomeCallback?.call();
+                                TutorialService.showTutorialNow.value = true;
                               },
                             ),
                             _MenuItem(

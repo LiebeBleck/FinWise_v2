@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_helper.dart';
+import '../services/tutorial_service.dart';
 import 'home_screen.dart';
 import 'analytics_screen.dart';
 import 'recommendations_screen.dart';
@@ -15,6 +16,20 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    TutorialService.switchToHomeCallback = () {
+      if (mounted) setState(() => _currentIndex = 0);
+    };
+  }
+
+  @override
+  void dispose() {
+    TutorialService.switchToHomeCallback = null;
+    super.dispose();
+  }
 
   final List<Widget> _screens = const [
     HomeScreen(),

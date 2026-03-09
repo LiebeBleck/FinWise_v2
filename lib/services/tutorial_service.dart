@@ -1,9 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Управление состоянием обучающего туториала.
 /// Хранит флаги shown/not-shown в SharedPreferences.
 class TutorialService {
   static const String _homeShownKey = 'tutorial_home_shown';
+
+  /// Уведомитель для немедленного запуска туториала (без перезапуска экрана)
+  static final ValueNotifier<bool> showTutorialNow = ValueNotifier(false);
+
+  /// Callback для переключения на вкладку "Главная" (устанавливается MainScreen)
+  static VoidCallback? switchToHomeCallback;
 
   /// Нужно ли показать туториал на HomeScreen?
   static Future<bool> shouldShowHomeTutorial() async {

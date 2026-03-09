@@ -41,7 +41,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    TutorialService.showTutorialNow.addListener(_onTutorialRequested);
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorialIfNeeded());
+  }
+
+  @override
+  void dispose() {
+    TutorialService.showTutorialNow.removeListener(_onTutorialRequested);
+    super.dispose();
+  }
+
+  void _onTutorialRequested() {
+    if (TutorialService.showTutorialNow.value && mounted) {
+      TutorialService.showTutorialNow.value = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startTutorial());
+    }
   }
 
   Future<void> _showTutorialIfNeeded() async {
@@ -94,10 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ],
-      colorShadow: AppTheme.primaryColor,
+      colorShadow: Colors.black,
       textSkip: 'Пропустить',
       paddingFocus: 8,
-      opacityShadow: 0.85,
+      opacityShadow: 0.80,
     ).show(context: context);
   }
 

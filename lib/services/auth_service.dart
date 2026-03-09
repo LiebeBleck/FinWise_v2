@@ -11,6 +11,7 @@ import 'data_sync_service.dart';
 class AuthService {
   static const _storage = FlutterSecureStorage();
   static const String _passwordKey = 'user_password_hash';
+  static const String _isLoggedInKey = 'user_is_logged_in';
 
   /// Регистрация нового пользователя
   static Future<bool> register({
@@ -48,6 +49,9 @@ class AuthService {
         periodStart: DateTime.now(),
       );
       await budgetBox.put('current', budget);
+
+      // Помечаем пользователя как вошедшего
+      await _storage.write(key: _isLoggedInKey, value: 'true');
 
       // Backend registration (fire-and-forget — работает и без интернета)
       _registerOnBackend(email: email, username: nickname, passwordHash: passwordHash, currency: currency);
@@ -101,6 +105,8 @@ class AuthService {
       // Проверяем пароль
       final ok = await verifyPassword(password);
       if (ok) {
+        // Помечаем как вошедшего
+        await _storage.write(key: _isLoggedInKey, value: 'true');
         // Обновляем токен на backend в фоне
         _loginOnBackend(email: email, passwordHash: _hashPassword(password));
       }
@@ -166,15 +172,13 @@ class AuthService {
     }
   }
 
-  /// Проверка: зарегистрирован ли пользователь
+  /// Проверка: вошёл ли пользователь в систему
   static Future<bool> isUserRegistered() async {
     try {
-      final usersBox = await Hive.openBox<User>('users');
-      final hasPassword = await _storage.read(key: _passwordKey) != null;
-
-      return usersBox.isNotEmpty && hasPassword;
+      final loggedIn = await _storage.read(key: _isLoggedInKey);
+      return loggedIn == 'true';
     } catch (e) {
-      print('Check registration error: $e');
+      print('Check login state error: $e');
       return false;
     }
   }
@@ -205,13 +209,11 @@ class AuthService {
     }
   }
 
-  /// Выход (сброс всех данных) - для тестирования
+  /// Выход — сбрасывает сессию, но сохраняет данные пользователя для повторного входа
   static Future<void> logout() async {
     try {
-      await _storage.delete(key: _passwordKey);
+      await _storage.write(key: _isLoggedInKey, value: 'false');
       await ApiService.clearToken();
-      final usersBox = await Hive.openBox<User>('users');
-      await usersBox.clear();
     } catch (e) {
       print('Logout error: $e');
     }
