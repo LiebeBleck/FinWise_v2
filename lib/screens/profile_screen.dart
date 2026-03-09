@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -163,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const SizedBox(width: 8),
                     const Text(
-                      'Profile',
+                      'Профиль',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -219,13 +220,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: CircleAvatar(
                                 radius: 50,
                                 backgroundColor: Colors.grey[300],
-                                backgroundImage: const AssetImage('assets/default_avatar.png'),
-                                onBackgroundImageError: (exception, stackTrace) {},
-                                child: Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Colors.grey[600],
-                                ),
+                                backgroundImage: _currentUser?.profilePhotoPath != null
+                                    ? FileImage(File(_currentUser!.profilePhotoPath!))
+                                    : null,
+                                child: _currentUser?.profilePhotoPath == null
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 50,
+                                        color: Colors.grey[600],
+                                      )
+                                    : null,
                               ),
                             ),
                           ],

@@ -26,11 +26,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _touchedIndex = -1;
   final Set<int> _selectedCategoryIds = {}; // пусто = все категории
   double _barChartScale = 1.0; // Масштаб графика (0.5 – 3.0)
+  bool _isDark = false;
 
   DateTime _selectedMonth =
       DateTime(DateTime.now().year, DateTime.now().month);
   bool _compareMode = false;
   late DateTime _compareMonth;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _isDark = Theme.of(context).brightness == Brightness.dark;
+  }
 
   @override
   void initState() {
@@ -45,7 +52,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: ValueListenableBuilder(
         valueListenable: Hive.box<Transaction>('transactions').listenable(),
         builder: (context, Box<Transaction> transactionsBox, _) {
@@ -138,10 +145,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               // Empty state if no data (not in compare mode)
               if (filteredTransactions.isEmpty && !_compareMode)
                 SliverFillRemaining(
+                  hasScrollBody: false,
                   child: _buildEmptyState(),
-                ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                )
+              else
+                const SliverToBoxAdapter(child: SizedBox(height: 150)),
             ],
           ));
         },
@@ -474,9 +482,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: _isDark ? Colors.grey.shade800 : Colors.grey.shade200),
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
@@ -569,11 +577,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -812,11 +820,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -863,11 +871,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -930,9 +938,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         builder: (ctx, setSheetState) {
           final allSelected = localSelection.length == expenseCategories.length;
           return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            decoration: BoxDecoration(
+              color: _isDark ? const Color(0xFF2C2C2C) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.75,
@@ -1101,11 +1109,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     if (displayExpenses.isEmpty) {
       return Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1114,9 +1122,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Распределение расходов',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: _isDark ? Colors.white : Colors.black87,
+              ),
             ),
             const SizedBox(height: 16),
             Icon(Icons.filter_list,
@@ -1147,11 +1159,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1163,10 +1175,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Распределение расходов',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: _isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
               ),
               if (_selectedCategoryIds.isNotEmpty)
@@ -1316,11 +1332,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     if (forecast == null) {
       return Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1370,11 +1386,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1903,11 +1919,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         // Summary comparison card
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -1989,11 +2005,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         // Comparison bar chart
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),

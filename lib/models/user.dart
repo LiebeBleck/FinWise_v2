@@ -19,11 +19,15 @@ class User extends HiveObject {
   @HiveField(4)
   String? email;
 
+  @HiveField(5)
+  String? profilePhotoPath;
+
   User({
     required this.username,
     this.currency = 'RUB',
     this.timezone = 'Europe/Moscow',
     this.theme = 'light',
     this.email,
+    this.profilePhotoPath,
   });
 }

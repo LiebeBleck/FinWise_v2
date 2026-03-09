@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../utils/password_validator.dart';
 import 'main_screen.dart';
 
 /// Экран входа/регистрации
@@ -200,7 +201,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           _buildTextField(
                             controller: _passwordController,
                             label: 'Пароль',
-                            hint: 'Минимум 6 символов',
+                            hint: widget.isLogin ? 'Введите пароль' : 'Мин. 8: A-z, 0-9, !@#',
                             icon: Icons.lock_outline,
                             obscureText: _obscurePassword,
                             suffixIcon: IconButton(
@@ -214,15 +215,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 setState(() => _obscurePassword = !_obscurePassword);
                               },
                             ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Введите пароль';
-                              }
-                              if (value.length < 6) {
-                                return 'Минимум 6 символов';
-                              }
-                              return null;
-                            },
+                            validator: widget.isLogin
+                                ? (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Введите пароль';
+                                    }
+                                    return null;
+                                  }
+                                : validatePassword,
                           ),
 
                           const SizedBox(height: 16),

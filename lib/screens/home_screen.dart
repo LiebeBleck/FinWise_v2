@@ -25,11 +25,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _selectedPeriod = 'month'; // day, week, month
+  bool _isDark = false;
 
   // GlobalKeys для spotlight туториала
   final _balanceCardKey = GlobalKey();
   final _addButtonKey = GlobalKey();
   final _scanButtonKey = GlobalKey();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _isDark = Theme.of(context).brightness == Brightness.dark;
+  }
 
   @override
   void initState() {
@@ -97,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: ValueListenableBuilder(
         valueListenable: Hive.box<Transaction>('transactions').listenable(),
         builder: (context, Box<Transaction> transactionsBox, _) {
@@ -133,15 +140,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.grey.shade200,
+                        color: _isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -164,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           VerticalDivider(
                             width: 1,
                             thickness: 1.5,
-                            color: Colors.grey.shade200,
+                            color: _isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                             indent: 12,
                             endIndent: 12,
                           ),
@@ -307,12 +314,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Нет транзакций',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF1E1E1E),
+                            color: _isDark ? Colors.white70 : const Color(0xFF1E1E1E),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -488,11 +495,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: _isDark ? Colors.transparent : Colors.black.withOpacity(0.08),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -584,7 +591,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      '-${numberFormat.format(spent)}',
+                                      spent == 0 ? '0 ₽' : '-${numberFormat.format(spent)}',
                                       style: const TextStyle(
                                         color: Color(0xFFFF8A80),
                                         fontSize: 22,
@@ -687,10 +694,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF0FDF4),
+                                color: _isDark ? const Color(0xFF1E3A2F) : const Color(0xFFF0FDF4),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: const Color(0xFFBBF7D0),
+                                  color: _isDark ? const Color(0xFF2D5A42) : const Color(0xFFBBF7D0),
                                   width: 1,
                                 ),
                               ),
@@ -743,10 +750,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFF1F2),
+                                color: _isDark ? const Color(0xFF3A1E20) : const Color(0xFFFFF1F2),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: const Color(0xFFFFCDD2),
+                                  color: _isDark ? const Color(0xFF5A2D30) : const Color(0xFFFFCDD2),
                                   width: 1,
                                 ),
                               ),
@@ -803,10 +810,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF7ED),
+                            color: _isDark ? Colors.grey.shade800 : const Color(0xFFFFF7ED),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: AppTheme.primaryColor.withOpacity(0.2),
+                              color: _isDark ? Colors.grey.shade700 : AppTheme.primaryColor.withOpacity(0.2),
                               width: 1,
                             ),
                           ),
@@ -829,7 +836,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     fontSize: 12,
                                     color: progress >= 1.0
                                         ? const Color(0xFFDC2626)
-                                        : const Color(0xFF92400E),
+                                        : _isDark ? Colors.orange.shade300 : const Color(0xFF92400E),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -921,10 +928,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E1E1E),
+                  color: _isDark ? Colors.white : const Color(0xFF1E1E1E),
                 ),
               ),
             ],
@@ -937,9 +944,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPeriodSelector() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.withOpacity(0.12), width: 1),
+        border: Border.all(color: _isDark ? Colors.grey.shade800 : Colors.grey.withOpacity(0.12), width: 1),
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
@@ -1066,7 +1073,7 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 200,
           margin: const EdgeInsets.only(right: 12),
           child: Material(
-            color: Colors.white,
+            color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               onTap: () => _markAsCompleted(transaction),

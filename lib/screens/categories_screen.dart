@@ -14,6 +14,13 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isDark = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _isDark = Theme.of(context).brightness == Brightness.dark;
+  }
 
   @override
   void initState() {
@@ -86,9 +93,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setModal) {
           return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            decoration: BoxDecoration(
+              color: _isDark ? const Color(0xFF2C2C2C) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             padding: EdgeInsets.only(
               left: 20,
@@ -132,7 +139,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     labelText: 'Название',
                     hintText: 'Например: Домашние животные',
                     filled: true,
-                    fillColor: const Color(0xFFFFF7ED),
+                    fillColor: _isDark ? Colors.grey[800] : const Color(0xFFFFF7ED),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -282,13 +289,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildHeader(context),
           // Tab bar
           Container(
-            color: Colors.white,
+            color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
             child: TabBar(
               controller: _tabController,
               labelColor: AppTheme.primaryColor,
@@ -472,11 +479,11 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF2D2D44) : Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: _isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -566,7 +573,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.primaryColor
-              : const Color(0xFFFFF7ED),
+              : _isDark ? Colors.grey.shade800 : const Color(0xFFFFF7ED),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected

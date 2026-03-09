@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../utils/responsive_helper.dart';
+import '../utils/password_validator.dart';
 import '../models/user.dart';
 import '../models/budget.dart';
 import '../services/export_import_service.dart';
@@ -61,6 +65,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     if (mounted) setState(() {});
+  }
+
+  Future<void> _pickPhoto() async {
+    final picker = ImagePicker();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Камера'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Галерея'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            if (_currentUser?.profilePhotoPath != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Удалить фото', style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.pop(ctx, null),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (source == null && _currentUser?.profilePhotoPath != null) {
+      // Delete photo
+      setState(() => _currentUser!.profilePhotoPath = null);
+      return;
+    }
+    if (source == null) return;
+
+    final picked = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 512);
+    if (picked == null || !mounted) return;
+
+    final dir = await getApplicationDocumentsDirectory();
+    final dest = '${dir.path}/profile_photo.jpg';
+    await File(picked.path).copy(dest);
+
+    setState(() => _currentUser!.profilePhotoPath = dest);
   }
 
   Future<void> _handleUpdateProfile() async {
@@ -142,12 +194,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               TextFormField(
                 controller: newPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'Новый пароль'),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Введите новый пароль';
-                  if (v.length < 6) return 'Минимум 6 символов';
-                  return null;
-                },
+                decoration: const InputDecoration(
+                  labelText: 'Новый пароль',
+                  hintText: 'Мин. 8: A-z, 0-9, !@#',
+                ),
+                validator: validatePassword,
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -322,7 +373,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
                     const Text(
-                      'Edit My Profile',
+                      'Редактирование профиля',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -366,48 +417,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         children: [
                           // Аватар с кнопкой редактирования
                           Center(
-                            child: Stack(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                                      width: 3,
-                                    ),
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 45,
-                                    backgroundColor: Colors.grey[300],
-                                    child: Icon(
-                                      Icons.person,
-                                      size: 45,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
+                            child: GestureDetector(
+                              onTap: _pickPhoto,
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primaryColor,
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFFFF7ED),
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
                                         width: 3,
                                       ),
                                     ),
-                                    child: const Icon(
-                                      Icons.edit,
-                                      size: 16,
-                                      color: Colors.white,
+                                    child: CircleAvatar(
+                                      radius: 45,
+                                      backgroundColor: Colors.grey[300],
+                                      backgroundImage: _currentUser?.profilePhotoPath != null
+                                          ? FileImage(File(_currentUser!.profilePhotoPath!))
+                                          : null,
+                                      child: _currentUser?.profilePhotoPath == null
+                                          ? Icon(
+                                              Icons.person,
+                                              size: 45,
+                                              color: Colors.grey[600],
+                                            )
+                                          : null,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFFFF7ED),
+                                          width: 3,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.camera_alt,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
 
@@ -441,7 +500,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                           // Account Settings
                           Text(
-                            'Account Settings',
+                            'Настройки аккаунта',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -454,7 +513,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           // Username
                           _buildTextField(
                             controller: _usernameController,
-                            label: 'Username',
+                            label: 'Имя пользователя',
                             icon: Icons.person_outline,
                             isDark: isDark,
                             validator: (v) => v == null || v.isEmpty ? 'Введите имя' : null,
@@ -465,7 +524,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           // Email
                           _buildTextField(
                             controller: _emailController,
-                            label: 'Email Address',
+                            label: 'Электронная почта',
                             icon: Icons.email_outlined,
                             isDark: isDark,
                             keyboardType: TextInputType.emailAddress,
@@ -481,7 +540,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           // Monthly Budget
                           _buildTextField(
                             controller: _budgetController,
-                            label: 'Monthly Budget',
+                            label: 'Месячный бюджет',
                             icon: Icons.account_balance_wallet_outlined,
                             suffix: Text(_selectedCurrency),
                             isDark: isDark,
@@ -498,7 +557,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                           // Currency
                           _buildDropdown(
-                            label: 'Currency',
+                            label: 'Валюта',
                             value: _selectedCurrency,
                             items: const ['₽', '\$', '€', '£'],
                             icon: Icons.monetization_on_outlined,
@@ -510,7 +569,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                           // Toggles
                           _buildToggleTile(
-                            title: 'Push Notifications',
+                            title: 'Push-уведомления',
                             value: _pushNotifications,
                             isDark: isDark,
                             onChanged: (v) => setState(() => _pushNotifications = v),
@@ -555,7 +614,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      'Update Profile',
+                                      'Обновить профиль',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -675,7 +734,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Additional Settings',
+          'Дополнительные настройки',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -688,7 +747,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ListTile(
           leading: Icon(Icons.lock_outline, color: isDark ? Colors.grey[400] : Colors.grey[700]),
           title: Text(
-            'Change Password',
+            'Сменить пароль',
             style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           ),
           trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey[400] : Colors.grey[600]),
@@ -703,7 +762,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ListTile(
           leading: Icon(Icons.upload_file, color: isDark ? Colors.grey[400] : Colors.grey[700]),
           title: Text(
-            'Export Data',
+            'Экспорт данных',
             style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           ),
           trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey[400] : Colors.grey[600]),
@@ -718,7 +777,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ListTile(
           leading: Icon(Icons.download, color: isDark ? Colors.grey[400] : Colors.grey[700]),
           title: Text(
-            'Import Data',
+            'Импорт данных',
             style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           ),
           trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey[400] : Colors.grey[600]),
