@@ -199,6 +199,7 @@ sequenceDiagram
 erDiagram
     USER ||--o{ TRANSACTION : has
     USER ||--o{ BUDGET : sets
+    USER ||--o{ SAVINGS_GOAL : has
     CATEGORY ||--o{ TRANSACTION : categorizes
 
     USER {
@@ -207,6 +208,7 @@ erDiagram
         string currency "₽/$€£"
         string timezone "Europe/Moscow"
         string theme "light/dark"
+        string profile_photo_path "Путь к фото (optional)"
     }
 
     CATEGORY {
@@ -214,6 +216,7 @@ erDiagram
         string name
         string color
         bool is_default
+        string type "income/expense/both"
     }
 
     TRANSACTION {
@@ -233,6 +236,19 @@ erDiagram
     BUDGET {
         double monthly_amount
         datetime period_start
+        string period_type "weekly/monthly/yearly"
+        json category_budgets "Лимиты по категориям"
+    }
+
+    SAVINGS_GOAL {
+        string id PK "UUID"
+        string name
+        double target_amount
+        double saved_amount
+        datetime created_at
+        datetime deadline "Optional"
+        string icon "Optional"
+        string color "Optional"
     }
 
     SYNC_QUEUE {
