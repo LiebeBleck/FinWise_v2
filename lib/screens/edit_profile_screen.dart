@@ -517,6 +517,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             icon: Icons.person_outline,
                             isDark: isDark,
                             keyboardType: TextInputType.text,
+                            textCapitalization: TextCapitalization.words,
                             validator: (v) => v == null || v.isEmpty ? 'Введите имя' : null,
                           ),
 
@@ -648,11 +649,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required bool isDark,
     Widget? suffix,
     TextInputType? keyboardType,
+    TextCapitalization textCapitalization = TextCapitalization.none,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      autocorrect: true,
+      enableSuggestions: true,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         labelText: label,

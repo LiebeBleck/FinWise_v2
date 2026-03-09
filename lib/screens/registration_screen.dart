@@ -185,6 +185,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               hint: 'Ваше имя',
                               icon: Icons.person_outline,
                               keyboardType: TextInputType.text,
+                              textCapitalization: TextCapitalization.words,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Введите имя';
@@ -453,6 +454,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
+    TextCapitalization textCapitalization = TextCapitalization.none,
     bool obscureText = false,
     Widget? suffixIcon,
     Widget? suffix,
@@ -463,6 +465,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
       obscureText: obscureText,
       decoration: InputDecoration(
         labelText: label,
