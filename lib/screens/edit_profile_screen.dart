@@ -516,6 +516,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             label: 'Имя пользователя',
                             icon: Icons.person_outline,
                             isDark: isDark,
+                            keyboardType: TextInputType.text,
                             validator: (v) => v == null || v.isEmpty ? 'Введите имя' : null,
                           ),
 

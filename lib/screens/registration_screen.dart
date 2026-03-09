@@ -184,6 +184,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               label: 'Полное имя',
                               hint: 'Ваше имя',
                               icon: Icons.person_outline,
+                              keyboardType: TextInputType.text,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Введите имя';
