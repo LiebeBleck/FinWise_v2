@@ -100,6 +100,10 @@ class OCRService:
                             items[i] = dict(item, sum=candidate)
                             break
 
+        # Фильтр мусора: убираем позиции, цена которых = итогу (гарбл строки ИТОГ/ПОДЫТОГ)
+        if total and total > 0 and len(items) > 1:
+            items = [i for i in items if abs(i["sum"] - total) / total > 0.02]
+
         return {
             "total":    total,
             "date":     self._extract_date(lines),
@@ -226,7 +230,8 @@ class OCRService:
                     name = re.sub(r'[\s=\d.,]+$', '', name).strip()
                     # Убираем артикул в начале
                     name = re.sub(r'^\*?\d{5,}\s*', '', name).strip()
-                    if len(name) > 2:
+                    looks_like_price = bool(re.match(r'^[\d\s.,=*×хx]+$', name))
+                    if len(name) > 2 and not looks_like_price:
                         items.append({"name": name, "sum": price})
                 i += 1
                 continue
@@ -261,7 +266,9 @@ class OCRService:
                 name = m_plain.group(1).strip()
                 # Убираем артикул в начале
                 name = re.sub(r'^\*?\d{5,}\s*', '', name).strip()
-                if price and price > 0 and len(name) > 2:
+                # Имя выглядит как цена (например "94.00") — пропускаем
+                looks_like_price = bool(re.match(r'^[\d\s.,=*×хx]+$', name))
+                if price and price > 0 and len(name) > 2 and not looks_like_price:
                     items.append({"name": name, "sum": price})
 
             i += 1
