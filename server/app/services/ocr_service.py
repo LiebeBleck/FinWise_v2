@@ -101,7 +101,7 @@ class OCRService:
                             break
 
         # Фильтр мусора: убираем позиции, цена которых = итогу (гарбл строки ИТОГ/ПОДЫТОГ)
-        if total and total > 0 and len(items) > 1:
+        if total and total > 0:
             items = [i for i in items if abs(i["sum"] - total) / total > 0.02]
 
         return {
