@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -412,29 +414,32 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         return;
       }
 
-      // OCR распознавание
-      final inputImage = InputImage.fromFilePath(image.path);
-      final textRecognizer = TextRecognizer();
-      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
-      await textRecognizer.close();
+      // OCR: сначала серверный (Tesseract + preprocessing), fallback — локальный ML Kit
+      Receipt receipt;
+      try {
+        receipt = await _serverOcr(image.path);
+      } catch (_) {
+        // Сервер недоступен — используем ML Kit на устройстве
+        final inputImage = InputImage.fromFilePath(image.path);
+        final textRecognizer = TextRecognizer();
+        final RecognizedText recognizedText =
+            await textRecognizer.processImage(inputImage);
+        await textRecognizer.close();
 
-      final ocrText = recognizedText.text;
-
-      if (ocrText.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Не удалось распознать текст')),
-          );
+        if (recognizedText.text.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Не удалось распознать текст')),
+            );
+          }
+          setState(() {
+            _isProcessing = false;
+            _selectedMethod = '';
+          });
+          return;
         }
-        setState(() {
-          _isProcessing = false;
-          _selectedMethod = '';
-        });
-        return;
+        receipt = Receipt.fromOCR(recognizedText.text);
       }
-
-      // Парсинг OCR текста
-      final receipt = Receipt.fromOCR(ocrText);
 
       if (mounted) {
         // Переход к экрану предпросмотра
@@ -455,5 +460,33 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         _selectedMethod = '';
       });
     }
+  }
+
+  /// Отправить фото на серверный OCR endpoint и получить распознанный чек.
+  /// Выбрасывает исключение если сервер недоступен — вызывающий код переходит на ML Kit.
+  Future<Receipt> _serverOcr(String imagePath) async {
+    final bytes = await XFile(imagePath).readAsBytes();
+    final base64Image = base64Encode(bytes);
+
+    final response = await http
+        .post(
+          Uri.parse('http://80.93.60.208/api/v1/receipts/ocr'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'image_base64': base64Image}),
+        )
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception('Server OCR error: ${response.statusCode}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+    // Если сервер не смог найти сумму — fallback на ML Kit
+    if (data['total'] == null || (data['total'] as num) == 0) {
+      throw Exception('Server OCR: total not found');
+    }
+
+    return Receipt.fromServerOCR(data);
   }
 }

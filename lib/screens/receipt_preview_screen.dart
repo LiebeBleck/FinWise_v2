@@ -409,7 +409,9 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
 
   void _saveTransactions() {
     final transactionsBox = Hive.box<Transaction>('transactions');
-    final receiptDate = _receipt.date ?? DateTime.now();
+    // Используем сегодняшнюю дату — дата чека остаётся в metadata (receiptData)
+    // Это гарантирует что транзакция видна в текущем периоде на главном экране
+    final receiptDate = DateTime.now();
 
     if (_createSeparateTransactions && _receipt.items.isNotEmpty) {
       // Создать отдельную транзакцию для каждого товара
