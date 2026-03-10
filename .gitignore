@@ -7,6 +7,9 @@ server/README.md
 server/ML_MODELS.md
 server/DATABASE.md
 docs/
+docs_images/
+generate_diagrams.py
+generate_doc.py
 
 # Miscellaneous
 *.class
